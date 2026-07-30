@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .eq('user_id', userId)
       .maybeSingle();
 
-    console.log("client", client)
+    // console.log("client", client)
 
     if (!client) {
       // No matching row anywhere — likely mid-onboarding

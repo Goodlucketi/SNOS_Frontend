@@ -92,20 +92,34 @@ const Wallet: React.FC = () => {
             }
           ]
         },
-        callback: async (response: any) => {
-          // Payment successful via Paystack frontend
-          // Update balance frontend-only (no database writes as requested)
+        callback: function (response: any)  {
+          // Payment was successful, update wallet balance in Supabase`
           try {
             const newBalance = balance + amountNum;
             setBalance(newBalance);
             toast.success(`Wallet topped up successfully! ₦${amountNum.toLocaleString()} added.`);
-          } catch (err: any) {
+
+            // Update the user's wallet balance in Supabase metadata
+            supabase.from('clients').update({
+              metadata: { wallet_balance: newBalance }
+            }).eq('id', user.id).then(({ error }) => {
+              if (error) {
+                console.error('Error updating wallet balance in Supabase:', error);
+                toast.error('Payment successful but failed to update balance in database');
+              }
+            });
+          } 
+          
+          catch (err: any) {
             console.error('Error updating balance:', err);
             toast.error('Payment successful but failed to update balance');
-          } finally {
+          }
+          
+          finally {
             setIsProcessingPayment(false);
           }
         },
+
         onClose: () => {
           // Handle cancelled/closed payment
           setIsProcessingPayment(false);

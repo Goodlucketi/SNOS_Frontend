@@ -143,7 +143,7 @@ export interface ClientEvent {
 
 export async function getClientEvents(clientId: string): Promise<ClientEvent[]> {
   const { data, error } = await supabase
-    .from('events')
+    .from('rf_events')
     .select('*')
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
