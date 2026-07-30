@@ -1,0 +1,6 @@
+{
+  "name": "SNOS",
+  "description": "Security Network Operating System for real-time monitoring, surveillance, and immediate security alerts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
