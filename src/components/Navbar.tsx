@@ -145,13 +145,22 @@ const Navbar: React.FC = () => {
                 />
               </Link>
             ) : (
-              <Link to="/register" className="flex items-center gap-1.5">
-                <Button
-                  text="Register"
-                  variant="primary"
-                  size="sm"
-                />
-              </Link>
+              <div className="grid grid-cols-2">
+                <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <Button
+                    text="Login"
+                    variant="secondary"
+                    size="sm"
+                  />
+                </Link>
+                <Link to="/register" className="flex items-center gap-1.5">
+                  <Button
+                    text="Register"
+                    variant="primary"
+                    size="sm"
+                  />
+                </Link>
+              </div>
             )}
           </div>
 
@@ -232,9 +241,14 @@ const Navbar: React.FC = () => {
                     <Button text="Dashboard" variant="primary" size="md" className="w-full justify-center" />
                   </Link>
                 ) : (
-                  <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
-                    <Button text="Register" variant="primary" size="md" className="w-full justify-center" />
-                  </Link>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                      <Button text="Login" variant="outline" size="md" className="w-full justify-center" />
+                    </Link>
+                    <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
+                      <Button text="Register" variant="primary" size="md" className="w-full justify-center" />
+                    </Link>
+                  </div>
                 )}
               </div>
             </motion.div>
