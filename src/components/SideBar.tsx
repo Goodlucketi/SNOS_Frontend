@@ -22,6 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 
 interface SideBarProps {
   unreadCount: number;
+  clientData?: any;
 }
 
 interface NavItem {
@@ -31,7 +32,7 @@ interface NavItem {
   badge?: number;
 }
 
-const SideBar: React.FC<SideBarProps> = ({ unreadCount }) => {
+const SideBar: React.FC<SideBarProps> = ({ unreadCount, clientData }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { logout, user, appRole, isSuperAdmin, isOrgAdmin, isPrimaryOrgAdmin, organizationName } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -162,10 +163,10 @@ const SideBar: React.FC<SideBarProps> = ({ unreadCount }) => {
           {/* User profile capsule */}
           <div className="flex items-center gap-3 px-3 py-2 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-150 dark:border-slate-900">
             <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'C'}
+              {clientData?.name ? clientData.name.charAt(0).toUpperCase() : (user?.name ? user.name.charAt(0).toUpperCase() : 'C')}
             </div>
             <div className="min-w-0">
-              <h4 className="text-xs font-bold text-slate-800 dark:text-white truncate">{user?.name}</h4>
+              <h4 className="text-xs font-bold text-slate-800 dark:text-white truncate">{clientData?.name || user?.name || 'Client User'}</h4>
               <p className="text-[10px] text-slate-400 font-mono truncate">{user?.user_id}</p>
             </div>
           </div>

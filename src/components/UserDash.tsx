@@ -2,15 +2,17 @@ import React from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Bell, ShieldAlert, CheckCircle2, Clock, MapPin, KeyRound, Radio, Signal } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Alert, User } from '../types';
+import { Alert } from '../types';
+import { User } from '../context/AuthContext';
 
 interface OutletContextType {
   alerts: Alert[];
   user: User;
+  clientData: any;
 }
 
 const UserDash: React.FC = () => {
-  const { alerts = [], user = {} as User } = useOutletContext<OutletContextType>();
+  const { alerts = [], user = {} as User, clientData = {} } = useOutletContext<OutletContextType>();
 
   const unreadCount = alerts.filter(alert => alert.status === 'unread').length;
   const inProgressCount = alerts.filter(alert => alert.status === 'in-progress').length;
@@ -37,7 +39,7 @@ const UserDash: React.FC = () => {
           <div className="space-y-2">
             <p className="text-blue-400 text-xs font-bold uppercase tracking-wider">{getGreeting()}, Console Operator</p>
             <h2 className="text-3xl font-display font-extrabold tracking-tight">
-              Welcome, {user?.name || "Client User"}
+              Welcome, {clientData?.name || "Operator"}!
             </h2>
             <p className="text-sm text-slate-400 max-w-lg leading-relaxed">
               Your SNOS sensory nodes are active. You are connected to the central Lagos Security Gateway network.
@@ -124,8 +126,8 @@ const UserDash: React.FC = () => {
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Location (LoT)</span>
             </div>
             <div>
-              <h4 className="font-display font-bold text-base text-slate-900 dark:text-white truncate">{user?.location || "Unspecified Area"}</h4>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 truncate">{user?.address || "Lagos, Nigeria"}</p>
+              <h4 className="font-display font-bold text-base text-slate-900 dark:text-white truncate">{clientData?.location || "Unspecified Area"}</h4>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 truncate">{clientData?.address || "Lagos, Nigeria"}</p>
             </div>
             <div className="mt-2 pt-3 border-t border-slate-100 dark:border-slate-850 flex justify-between items-center text-[10px]">
               <span className="font-mono text-slate-400">STATUS: SENSORS ARMED</span>

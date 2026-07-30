@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { Alert } from "../types";
 
 const DashView: React.FC = () => {
-  const { user } = useAuth();
+  const { user, clientData } = useAuth();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
@@ -59,11 +59,11 @@ const DashView: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300 flex flex-col md:flex-row">
       {/* Sidebar Section */}
-      <SideBar unreadCount={unreadCount} />
+      <SideBar unreadCount={unreadCount} clientData={clientData} />
 
       {/* Dynamic Views Viewport */}
       <main className="flex-grow p-4 md:p-8 md:pl-[288px] overflow-y-auto max-w-7xl mx-auto w-full">
-        <Outlet context={{ alerts, setAlerts, user }} />
+        <Outlet context={{ alerts, setAlerts, user, clientData }} />
       </main>
     </div>
   );
