@@ -65,28 +65,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * it's the most privileged and structurally separate from clients.
    */
   const resolveUserRole = async (userId: string) => {
-    // 1. Platform staff — super_admin
-    const { data: snocUser } = await supabase
-      .from('snoc_users')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (snocUser) {
-      setAppRole('super_admin');
-      setIsClient(false);
-      setClientData(null);
-      setOrganizationId(null);
-      setOrganizationName(null);
-      return;
-    }
-
-    // 2. Client row — everyone else (client, org_admin, sub_admin all live here)
+    // 1. Client row — everyone else (client, org_admin, sub_admin all live here)
     const { data: client } = await supabase
       .from('clients')
       .select('*')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .maybeSingle();
+
+    console.log("client", client)
 
     if (!client) {
       // No matching row anywhere — likely mid-onboarding
