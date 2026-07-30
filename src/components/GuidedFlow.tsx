@@ -52,7 +52,7 @@ const GuidedFlow: React.FC = () => {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isAwaitingWebhook, setIsAwaitingWebhook] = useState(false);
 
-  const { user, markAsClient, updateUserMetadata } = useAuth();
+  const { user, markAsClient } = useAuth();
   const { showLoader, hideLoader } = useUI();
 
   const { register: registerLead, handleSubmit: handleLeadSubmit, watch: watchLead } = useForm<LeadData>({
@@ -111,16 +111,8 @@ const GuidedFlow: React.FC = () => {
     window.history.back();
   };
 
-  const onLeadSubmit = async (data: LeadData) => {
+  const onLeadSubmit = (data: LeadData) => {
     setLeadData(data);
-    // Update Supabase Auth user metadata with the user's name
-    if (user) {
-      try {
-        await updateUserMetadata({ name: data.fullName });
-      } catch (err) {
-        console.warn('Failed to update user metadata:', err);
-      }
-    }
     advanceToStep(2); // Move to Account Type selection
   };
 

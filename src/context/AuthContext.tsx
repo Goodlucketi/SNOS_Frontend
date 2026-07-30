@@ -28,7 +28,6 @@ interface AuthContextType {
   isPrimaryOrgAdmin: boolean; // true ONLY for org_admin tier (can manage sub_admins)
   logout: () => Promise<void>;
   markAsClient: () => void;
-  updateUserMetadata: (data: { name?: string; role?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -45,7 +44,6 @@ const AuthContext = createContext<AuthContextType>({
   isPrimaryOrgAdmin: false,
   logout: async () => { },
   markAsClient: () => { },
-  updateUserMetadata: async () => { },
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -157,8 +155,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser({
           id: session.user.id,
           email: session.user.email,
-          name: session.user.user_metadata?.name || '',
-          role: session.user.user_metadata?.role || 'user'
         });
 
         if (event === 'SIGNED_IN' || !clientData) {
@@ -202,12 +198,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateUserMetadata = async (data: { name?: string; role?: string }) => {
-    const { error } = await supabase.auth.updateUser({ data });
-    if (error) throw error;
-    // The onAuthStateChange listener will update the local state automatically
-  };
-
   const isSuperAdmin = appRole === 'super_admin';
   const isOrgAdmin = appRole === 'org_admin' || appRole === 'sub_admin';
   const isPrimaryOrgAdmin = appRole === 'org_admin';
@@ -227,7 +217,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isPrimaryOrgAdmin,
       logout,
       markAsClient,
-      updateUserMetadata,
     }}>
       {children}
     </AuthContext.Provider>

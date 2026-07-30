@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { Outlet, useNavigate } from "react-router-dom";
 import SideBar from "./SideBar";
-import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
+import { getClientEvents } from "../lib/api";
 import { Alert } from "../types";
 
 const DashView: React.FC = () => {
@@ -24,23 +23,27 @@ const DashView: React.FC = () => {
 
   useEffect(() => {
     const fetchUserAlerts = async () => {
-      if (!user?.user_id) return;
+      
+      if (!user?.id) return;
       try {
-        const response = await axios.get(`/api/alerts/read.php?user_id=${user.user_id}`);
-        if (Array.isArray(response.data)) {
-          setAlerts(response.data);
-        } else {
-          // If response isn't an array or success is false, use empty array (will fallback to mock inside child view)
-          setAlerts([]);
-        }
+        const events = await getClientEvents(user.id);
+       
+        const mapped: Alert[] = events.map((e) => ({
+          id: e.id,
+          user_id: e.client_id,
+          message_text: e.message || 'Sensor triggered an alert',
+          timestamp: e.created_at,
+          media_url: e.image,
+          status: e.metadata?.status || 'unread',
+        }));
+        setAlerts(mapped);
       } catch (error) {
-        console.error("Alerts API server error:", error);
-        // Do not spam toast error on standard connection blockages, let children display mock data gracefully
+        console.error("Failed to load alerts from Supabase:", error);
         setAlerts([]);
       }
     };
-    
-    if (user?.user_id) {
+
+    if (user?.id) {
       fetchUserAlerts();
     }
   }, [user]);

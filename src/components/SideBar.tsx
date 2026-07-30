@@ -16,6 +16,7 @@ import {
   Globe,
   Radio,
   Package,
+  Banknote,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -66,6 +67,7 @@ const SideBar: React.FC<SideBarProps> = ({ unreadCount, clientData }) => {
   // Shared across every role
   navItems.push({ to: 'alerts', label: 'Security Alerts', icon: Bell, badge: unreadCount });
   navItems.push({ to: 'profile', label: 'My Profile', icon: User });
+  navItems.push({ to: 'wallet', label: 'Wallet', icon: Banknote });
   navItems.push({ to: 'settings', label: 'Preferences', icon: Settings });
 
   const roleLabel = isSuperAdmin

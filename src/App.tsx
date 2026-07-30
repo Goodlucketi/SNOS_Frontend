@@ -16,6 +16,7 @@ import Register from './pages/Register';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import SupportPage from './pages/SupportPage';
+import Wallet from './pages/Wallet';
 
 // Contexts
 import { useUI } from './context/UIContext';
@@ -109,6 +110,7 @@ const App: React.FC = () => {
                 {/* Shared across all roles */}
                 <Route path="alerts" element={<Alerts />} />
                 <Route path="profile" element={<Profile />} />
+                <Route path="wallet" element={<Wallet />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<RoleDashboardRedirect />} />
               </Route>

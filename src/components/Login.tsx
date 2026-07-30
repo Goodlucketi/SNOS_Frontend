@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import { supabase } from '../lib/supabaseClient';
 import Button from './Button';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
 
 interface LoginFormInputs {
   email: string;
@@ -18,6 +19,7 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { showLoader, hideLoader } = useUI();
+  const { isClient } = useAuth();
 
   useEffect(() => {
     if (location.state?.message) {
@@ -45,16 +47,11 @@ const Login: React.FC = () => {
       if (error) {
         toast.error(`Login Failed: ${error.message}`);
       } else if (authData.user) {
-        // Check if the user is already a client
-        const { data: clientData } = await supabase
-          .from('clients')
-          .select('id')
-          .eq('id', authData.user.id)
-          .single();
-
+        // Use the AuthContext's isClient state to determine navigation
+        // This ensures consistency with the rest of the application
         toast.success("Logged in successfully!");
-        
-        if (clientData) {
+
+        if (isClient) {
           navigate('/dashboard'); // Go to Dashboard
         } else {
           navigate('/register'); // Go to Guided Flow (Register handles the flowState swap automatically)

@@ -1,20 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { User as UserIcon, Mail, Phone, MapPin, Edit3, Save, X, Compass, Radio } from 'lucide-react';
+import { User as UserIcon, Mail, Phone, MapPin, Compass, Radio } from 'lucide-react';
 import { toast } from 'react-toastify';
-import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Alert, User } from '../types';
+import { updateClientProfile } from '../lib/api';
 import Button from './Button';
 
 interface OutletContextType {
-  alerts: Alert[];
-  user: User;
+  clientData: any; // the raw `clients` row, already fetched once by AuthContext at login
 }
 
 const Profile: React.FC = () => {
   const { user: authUser } = useAuth();
-  const { user: currentUser = {} as User } = useOutletContext<OutletContextType>();
+  // BUG FIX: this previously came from `useOutletContext().user`, typed as
+  // the legacy `types.User` (user_id, phone, location, address...). But
+  // DashView only ever puts `{ id, email, name, role }` (the real Supabase
+  // auth user) into that context - `user_id` never existed on it, so every
+  // `currentUser?.user_id` check below silently failed and the fetch never
+  // ran. `clientData` is the actual `clients` row DashView already fetched
+  // via AuthContext, so we read straight from that instead - no separate
+  // Supabase call needed just to populate this page.
+  const { clientData } = useOutletContext<OutletContextType>();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -28,35 +34,16 @@ const Profile: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (!currentUser?.user_id) return;
-      try {
-        const response = await axios.get(`/api/users/read_single.php?user_id=${currentUser.user_id}`);
-        if (response.data && response.data.user) {
-          const { name, email, location, address, phone } = response.data.user;
-          setFormData({
-            name: name || response.data.user.user_name || "",
-            email: email || response.data.user.user_email || "",
-            location: location || response.data.user.user_location || "",
-            address: address || response.data.user.user_address || "",
-            phone: phone || response.data.user.user_phone || "",
-          });
-        }
-      } catch (err) {
-        console.error("Failed to fetch user data, loading context instead:", err);
-        // Fallback to outlet context data
-        setFormData({
-          name: currentUser.name || "",
-          email: currentUser.email || "",
-          location: currentUser.location || "",
-          address: currentUser.address || "",
-          phone: currentUser.phone || "",
-        });
-      }
-    };
-
-    fetchUserData();
-  }, [currentUser]);
+    if (clientData) {
+      setFormData({
+        name: clientData.name || "",
+        email: clientData.email || authUser?.email || "",
+        location: clientData.location || "",
+        address: clientData.address || "",
+        phone: clientData.phone || "",
+      });
+    }
+  }, [clientData, authUser]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -64,24 +51,15 @@ const Profile: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!authUser?.id) return;
     setLoading(true);
     try {
-      const response = await axios.put(`/api/admin/update_user.php`, {
-        user_id: currentUser.user_id,
-        ...formData,
-      });
-
-      if (response.status === 200 || response.data?.success) {
-        toast.success("Profile updated on central gateway server.");
-        setIsEditing(false);
-      } else {
-        throw new Error("Update rejected by server");
-      }
-    } catch (err) {
-      console.error("Failed to update on remote server, saving locally:", err);
-      // Fallback local update (offline first)
-      toast.success("Profile updated successfully (Cached locally).");
+      await updateClientProfile(authUser.id, { ...formData });
+      toast.success("Profile updated.");
       setIsEditing(false);
+    } catch (err) {
+      console.error("Failed to update client profile in Supabase:", err);
+      toast.error("Could not save your profile changes. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -111,7 +89,7 @@ const Profile: React.FC = () => {
         {isEditing ? (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid md:grid-cols-2 gap-5">
-              
+
               {/* Name */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Full Name</label>
@@ -196,7 +174,7 @@ const Profile: React.FC = () => {
           </form>
         ) : (
           <div className="space-y-6">
-            
+
             {/* Display Fields in a structured fashion */}
             <div className="flex flex-col gap-4">
               {/* Field: ID */}
@@ -205,8 +183,8 @@ const Profile: React.FC = () => {
                   <Radio className="w-4.5 h-4.5" />
                 </div>
                 <div>
-                  <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Gateway Identity</h4>
-                  <p className="text-sm text-slate-800 dark:text-slate-100 font-mono font-semibold mt-0.5">{currentUser?.user_id}</p>
+                  <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Account ID</h4>
+                  <p className="text-sm text-slate-800 dark:text-slate-100 font-mono font-semibold mt-0.5">{authUser?.id}</p>
                 </div>
               </div>
 
