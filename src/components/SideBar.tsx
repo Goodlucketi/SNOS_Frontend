@@ -140,7 +140,7 @@ const SideBar: React.FC<SideBarProps> = ({ unreadCount, clientData }) => {
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex flex-col gap-2">
+          <nav className="flex flex-col gap-1">
             {navItems.map(({ to, label, icon: Icon, badge }) => (
               <NavLink
                 key={to}

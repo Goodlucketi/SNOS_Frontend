@@ -29,14 +29,6 @@ const Wallet: React.FC = () => {
     if (user?.id) {
       loadWalletData();
 
-      // Auto-refresh whenever the webhook inserts a new ledger row for
-      // this client (covers admin-issued credits/debits too, not just
-      // top-ups initiated from this tab).
-      // BUG FIX: filter was `user_id=eq.${user.id}` - wallet_ledger has no
-      // `user_id` column, it's `client_id` (same convention as every other
-      // table in this schema). A wrong filter column means Postgres
-      // Realtime silently matches nothing, not an error - this channel
-      // would have sat there doing nothing.
       const channel = supabase
         .channel(`wallet-${user.id}`)
         .on('postgres_changes', {
@@ -55,7 +47,6 @@ const Wallet: React.FC = () => {
     if (!user?.id) return;
     try {
       setLoading(true);
-      // BUG FIX: same user_id -> client_id column fix as above.
       const { data, error } = await supabase
         .from('wallet_ledger')
         .select('amount, type')
