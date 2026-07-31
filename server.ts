@@ -27,7 +27,7 @@ async function startServer() {
     try {
       const subPath = req.params[0] || req.path.replace(/^\/api\//, '');
       const queryString = new URLSearchParams(req.query as any).toString();
-      const targetUrl = `https://snos.teledominternational.net/${subPath}${queryString ? `?${queryString}` : ""}`;
+      const targetUrl = `https://ushaclccmspdnwljyasq.supabase.co/rest/v1/${subPath}${queryString ? `?${queryString}` : ""}`;
 
       console.log(`[API PROXY] Forwarding ${req.method} request to: ${targetUrl}`);
 

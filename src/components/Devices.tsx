@@ -6,20 +6,34 @@ import { useAuth } from '../context/AuthContext';
 interface Sensor {
   id: string;
   gateway_id: string;
-  category?: string;
-  sensing?: boolean;
-  heartbeat?: string; // timestamp of last check-in
+  client_id: string;
+  home_id: string | null;
+  automation_id: string | null;
+  rf_code: string | null;
+  message: string | null;
+  trigger_topic: string | null;
+  is_sensing: boolean;
+  status: string | null;
+  created_at: string;
+  updated_at: string;
+  timestamptz: string | null;
+  last_triggered_at: string | null;
 }
 
 interface Gateway {
   id: string;
+  home_id: string | null;
+  name: string | null;
+  mesh_address: string | null;
+  status: string | null;
+  created_at: string;
+  cert_fingerprint: string | null;
+  enrolled_at: string | null;
+  last_seen_at: string | null;
+  agent_version: string | null;
+  service_health: string | null;
+  service_health_at: string | null;
   client_id: string;
-  sensing?: boolean;
-  heartbeat?: string;
-  last_seen_at?: string;
-  user_defined_location?: string;
-  message?: string;
-  created_at?: string;
   sensors?: Sensor[];
 }
 
@@ -56,84 +70,153 @@ const DUMMY_GATEWAYS: Gateway[] = [
   {
     id: "GW-8F3A-001",
     client_id: "demo",
-    user_defined_location: "Perimeter Fence — Sector A",
-    last_seen_at: minutesAgo(1),
-    sensing: true,
-    heartbeat: minutesAgo(1),
-    message: "Operating normally",
+    home_id: null,
+    name: "Perimeter Fence — Sector A",
+    mesh_address: "0x8f3a001",
+    status: "online",
     created_at: "2025-11-15T10:30:00Z",
+    cert_fingerprint: null,
+    enrolled_at: "2025-11-15T10:30:00Z",
+    last_seen_at: minutesAgo(1),
+    agent_version: "1.2.3",
+    service_health: "healthy",
+    service_health_at: minutesAgo(1),
     sensors: [
-      { 
-        id: "SENS-001", 
-        gateway_id: "GW-8F3A-001", 
-        category: "Vibration / Seismic", 
-        sensing: true, 
-        heartbeat: minutesAgo(1) 
+      {
+        id: "SENS-001",
+        gateway_id: "GW-8F3A-001",
+        client_id: "demo",
+        home_id: null,
+        automation_id: null,
+        rf_code: "VIB-001",
+        message: "Vibration / Seismic",
+        trigger_topic: null,
+        is_sensing: true,
+        status: "active",
+        created_at: "2025-11-15T10:30:00Z",
+        updated_at: "2025-11-15T10:30:00Z",
+        timestamptz: minutesAgo(1),
+        last_triggered_at: minutesAgo(1)
       },
-      { 
-        id: "SENS-002", 
-        gateway_id: "GW-8F3A-001", 
-        category: "PIR / Motion", 
-        sensing: true, 
-        heartbeat: minutesAgo(3) 
+      {
+        id: "SENS-002",
+        gateway_id: "GW-8F3A-001",
+        client_id: "demo",
+        home_id: null,
+        automation_id: null,
+        rf_code: "PIR-001",
+        message: "PIR / Motion",
+        trigger_topic: null,
+        is_sensing: true,
+        status: "active",
+        created_at: "2025-11-15T10:30:00Z",
+        updated_at: "2025-11-15T10:30:00Z",
+        timestamptz: minutesAgo(3),
+        last_triggered_at: minutesAgo(3)
       },
-      { 
-        id: "SENS-003", 
-        gateway_id: "GW-8F3A-001", 
-        category: "Acoustic / Glass-break", 
-        sensing: false, 
-        heartbeat: minutesAgo(48) 
+      {
+        id: "SENS-003",
+        gateway_id: "GW-8F3A-001",
+        client_id: "demo",
+        home_id: null,
+        automation_id: null,
+        rf_code: "ACO-001",
+        message: "Acoustic / Glass-break",
+        trigger_topic: null,
+        is_sensing: false,
+        status: "inactive",
+        created_at: "2025-11-15T10:30:00Z",
+        updated_at: "2025-11-15T10:30:00Z",
+        timestamptz: minutesAgo(48),
+        last_triggered_at: minutesAgo(48)
       },
     ],
   },
   {
     id: "GW-B72D-2",
     client_id: "demo-client",
-    user_defined_location: "Indoor Server Room",
-    last_seen_at: minutesAgo(0.3),
-    sensing: true,
-    heartbeat: minutesAgo(0.3),
-    message: "All clear",
+    home_id: null,
+    name: "Indoor Server Room",
+    mesh_address: "0xb72d002",
+    status: "online",
     created_at: "2025-09-01T08:15:00Z",
+    cert_fingerprint: null,
+    enrolled_at: "2025-09-01T08:15:00Z",
+    last_seen_at: minutesAgo(0.3),
+    agent_version: "1.2.3",
+    service_health: "healthy",
+    service_health_at: minutesAgo(0.3),
     sensors: [
-      { 
-        id: "SENS-004", 
-        gateway_id: "GW-B72D-2", 
-        category: "Temperature", 
-        sensing: true, 
-        heartbeat: minutesAgo(0.5) 
-        
+      {
+        id: "SENS-004",
+        gateway_id: "GW-B72D-2",
+        client_id: "demo-client",
+        home_id: null,
+        automation_id: null,
+        rf_code: "TMP-001",
+        message: "Temperature",
+        trigger_topic: null,
+        is_sensing: true,
+        status: "active",
+        created_at: "2025-09-01T08:15:00Z",
+        updated_at: "2025-09-01T08:15:00Z",
+        timestamptz: minutesAgo(0.5),
+        last_triggered_at: minutesAgo(0.5)
       },
-      { 
-        id: "SENS-005", 
-        gateway_id: "GW-B72D-2", 
-        category: "Smoke / CO", 
-        sensing: true, 
-        heartbeat: minutesAgo(1) 
-        
+      {
+        id: "SENS-005",
+        gateway_id: "GW-B72D-2",
+        client_id: "demo-client",
+        home_id: null,
+        automation_id: null,
+        rf_code: "SMK-001",
+        message: "Smoke / CO",
+        trigger_topic: null,
+        is_sensing: true,
+        status: "active",
+        created_at: "2025-09-01T08:15:00Z",
+        updated_at: "2025-09-01T08:15:00Z",
+        timestamptz: minutesAgo(1),
+        last_triggered_at: minutesAgo(1)
       },
-      { 
-        id: "SENS-006", 
-        gateway_id: "GW-B72D-2", 
-        category: "Flood / Leak", 
-        sensing: false, 
-        heartbeat: minutesAgo(120) 
-        
+      {
+        id: "SENS-006",
+        gateway_id: "GW-B72D-2",
+        client_id: "demo-client",
+        home_id: null,
+        automation_id: null,
+        rf_code: "FLD-001",
+        message: "Flood / Leak",
+        trigger_topic: null,
+        is_sensing: false,
+        status: "inactive",
+        created_at: "2025-09-01T08:15:00Z",
+        updated_at: "2025-09-01T08:15:00Z",
+        timestamptz: minutesAgo(120),
+        last_triggered_at: minutesAgo(120)
       },
-      { 
-        id: "SENS-007", 
-        gateway_id: "GW-B72D-2", 
-        category: "Door / Reed Switch", 
-        sensing: true, 
-        heartbeat: minutesAgo(0.2) 
-        
+      {
+        id: "SENS-007",
+        gateway_id: "GW-B72D-2",
+        client_id: "demo-client",
+        home_id: null,
+        automation_id: null,
+        rf_code: "DRS-001",
+        message: "Door / Reed Switch",
+        trigger_topic: null,
+        is_sensing: true,
+        status: "active",
+        created_at: "2025-09-01T08:15:00Z",
+        updated_at: "2025-09-01T08:15:00Z",
+        timestamptz: minutesAgo(0.2),
+        last_triggered_at: minutesAgo(0.2)
       },
     ],
   },
 ];
 
 const Devices: React.FC = () => {
-  const { user } = useAuth();
+  const { clientData } = useAuth();
   const [gateways, setGateways] = useState<Gateway[]>([]);
   const [loading, setLoading] = useState(true);
   const [usingDummyData, setUsingDummyData] = useState(false);
@@ -152,37 +235,106 @@ const Devices: React.FC = () => {
     const states: Record<string, boolean> = {};
     gateways.forEach(gw => {
       gw.sensors?.forEach(s => {
-        states[s.id] = s.sensing ?? true;
+        states[s.id] = s.is_sensing ?? true;
       });
     });
     setSensingStates(states);
   }, [gateways]);
 
   useEffect(() => {
-    const fetchGateways = async () => {
-      if (!user?.id) return;
+    let cancelled = false;
 
-      // Nested select pulls each gateway's sensors in one round trip,
-      // relying on the sensors.gateway_id -> gateways.id foreign key.
-      const { data, error } = await supabase
+    const fetchGateways = async () => {
+      // Use clientData.id which is the clients table ID, not the auth user ID
+      const clientId = clientData?.id;
+
+      console.log('Devices effect running, clientData:', clientData);
+
+      if (!clientId) {
+        console.log('No client ID available yet');
+        if (!cancelled) {
+          setGateways(DUMMY_GATEWAYS);
+          setUsingDummyData(true);
+          setLoading(false);
+        }
+        return;
+      }
+
+      console.log('Fetching gateways for client:', clientId);
+
+      // Fetch gateways first, then fetch their sensors from rf_sensors table
+      // using the gateway_id foreign key
+      const { data: gatewaysData, error: gatewaysError } = await supabase
         .from('gateways')
-        .select('*, sensors(*)')
-        .eq('client_id', user.id)
+        .select('*')
+        .eq('client_id', clientId)
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
-        setGateways(data as any);
-        setUsingDummyData(false);
-      } else {
-        // Show dummy demo gateways when no real devices exist
+      if (cancelled) return;
+
+      if (gatewaysError) {
+        console.error('Error fetching gateways:', gatewaysError.message);
         setGateways(DUMMY_GATEWAYS);
         setUsingDummyData(true);
+        setLoading(false);
+        return;
       }
+
+      console.log('Gateways found:', gatewaysData?.length, gatewaysData);
+
+      if (!gatewaysData || gatewaysData.length === 0) {
+        console.log('No gateways for client, showing dummy');
+        setGateways(DUMMY_GATEWAYS);
+        setUsingDummyData(true);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch sensors for all gateways from rf_sensors table
+      const gatewayIds = gatewaysData.map(gw => gw.id);
+      console.log('Fetching sensors for gateway IDs:', gatewayIds);
+
+      const { data: sensorsData, error: sensorsError } = await supabase
+        .from('rf_sensors')
+        .select('*')
+        .in('gateway_id', gatewayIds);
+
+      if (cancelled) return;
+
+      if (sensorsError) {
+        console.error('Error fetching sensors:', sensorsError.message);
+      }
+
+      console.log('Sensors found:', sensorsData?.length, sensorsData);
+
+      // Group sensors by gateway_id
+      const sensorsByGateway = (sensorsData || []).reduce((acc, sensor) => {
+        if (!acc[sensor.gateway_id]) {
+          acc[sensor.gateway_id] = [];
+        }
+        acc[sensor.gateway_id].push(sensor);
+        return acc;
+      }, {} as Record<string, Sensor[]>);
+
+      // Combine gateways with their sensors
+      const gatewaysWithSensors = gatewaysData.map(gateway => ({
+        ...gateway,
+        sensors: sensorsByGateway[gateway.id] || []
+      }));
+
+      console.log('Final gateways with sensors:', gatewaysWithSensors);
+
+      setGateways(gatewaysWithSensors as any);
+      setUsingDummyData(false);
       setLoading(false);
     };
 
     fetchGateways();
-  }, [user?.id]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clientData?.id]);
 
   return (
     <div className="space-y-6 font-sans animate-fade-in">
@@ -209,7 +361,7 @@ const Devices: React.FC = () => {
             </div>
           )}
           {gateways.map((gw) => {
-            const online = isOnline(gw.last_seen_at || gw.heartbeat);
+            const online = isOnline(gw.last_seen_at ?? undefined);
             return (
               <div
                 key={gw.id}
@@ -223,11 +375,11 @@ const Devices: React.FC = () => {
                     </div>
                     <div>
                       <h4 className="text-sm font-bold text-slate-800 dark:text-white">
-                        Gateway {gw.id.slice(0, 8)}
+                        {gw.name || `Gateway ${gw.id.slice(0, 8)}`}
                       </h4>
                       <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
                         <MapPin className="w-3.5 h-3.5" />
-                        {gw.user_defined_location || 'Location not set'}
+                        {gw.name || 'Location not set'}
                       </p>
                     </div>
                   </div>
@@ -237,7 +389,7 @@ const Devices: React.FC = () => {
                       {online ? 'ONLINE' : 'OFFLINE'}
                     </span>
                     <p className="text-[10px] text-slate-400 font-mono mt-1">
-                      Last seen {timeAgo(gw.last_seen_at || gw.heartbeat)}
+                      Last seen {timeAgo(gw.last_seen_at ?? undefined)}
                     </p>
                   </div>
                 </div>
@@ -252,7 +404,7 @@ const Devices: React.FC = () => {
                   ) : (
                     <div className="grid sm:grid-cols-2 gap-3">
                       {gw.sensors.map((sensor) => {
-                        const sensing = sensingStates[sensor.id] ?? true;
+                        const sensing = sensingStates[sensor.id] ?? sensor.is_sensing ?? true;
                         return (
                           <div
                             key={sensor.id}
@@ -262,9 +414,9 @@ const Devices: React.FC = () => {
                               <Cpu className="w-4 h-4 text-slate-400 shrink-0" />
                               <div className="min-w-0">
                                 <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
-                                  {sensor.category || 'Sensor'}
+                                  {sensor.message || sensor.rf_code || 'Sensor'}
                                 </p>
-                                <p className="text-[10px] text-slate-400 font-mono">{timeAgo(sensor.heartbeat)}</p>
+                                <p className="text-[10px] text-slate-400 font-mono">{timeAgo(sensor.timestamptz ?? sensor.last_triggered_at ?? undefined)}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">

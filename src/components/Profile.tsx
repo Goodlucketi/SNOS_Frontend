@@ -1,26 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import { User as UserIcon, Mail, Phone, MapPin, Compass, Radio } from 'lucide-react';
+import { User as UserIcon, Mail, Phone, MapPin, Compass, Radio, Building2, Smartphone, UserCheck } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
-import { updateClientProfile } from '../lib/api';
+import { updateClientProfile, updateClientProfileInMetadata } from '../lib/api';
 import Button from './Button';
 
-interface OutletContextType {
-  clientData: any; // the raw `clients` row, already fetched once by AuthContext at login
-}
-
 const Profile: React.FC = () => {
-  const { user: authUser } = useAuth();
-  // BUG FIX: this previously came from `useOutletContext().user`, typed as
-  // the legacy `types.User` (user_id, phone, location, address...). But
-  // DashView only ever puts `{ id, email, name, role }` (the real Supabase
-  // auth user) into that context - `user_id` never existed on it, so every
-  // `currentUser?.user_id` check below silently failed and the fetch never
-  // ran. `clientData` is the actual `clients` row DashView already fetched
-  // via AuthContext, so we read straight from that instead - no separate
-  // Supabase call needed just to populate this page.
-  const { clientData } = useOutletContext<OutletContextType>();
+  const { user: authUser, clientData } = useAuth();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -28,24 +14,32 @@ const Profile: React.FC = () => {
     location: "",
     address: "",
     phone: "",
+    account_type: "",
+    building_count: "",
+    primary_whatsapp: "",
   });
 
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Load profile from clientData (direct columns + metadata for extra fields)
   useEffect(() => {
     if (clientData) {
+      const metadataProfile = clientData.metadata?.profile || {};
       setFormData({
         name: clientData.name || "",
         email: clientData.email || authUser?.email || "",
         location: clientData.location || "",
         address: clientData.address || "",
         phone: clientData.phone || "",
+        account_type: metadataProfile.account_type || "",
+        building_count: metadataProfile.building_count || "",
+        primary_whatsapp: metadataProfile.primary_whatsapp || "",
       });
     }
   }, [clientData, authUser]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -54,11 +48,19 @@ const Profile: React.FC = () => {
     if (!authUser?.id) return;
     setLoading(true);
     try {
-      await updateClientProfile(authUser.id, { ...formData });
+      // Update direct columns on clients table
+      const { account_type, building_count, primary_whatsapp, ...directColumns } = formData;
+      await updateClientProfile(authUser.id, directColumns);
+
+      // Also update metadata for fields not yet migrated to columns
+      if (account_type || building_count || primary_whatsapp) {
+        await updateClientProfileInMetadata(authUser.id, { account_type, building_count, primary_whatsapp });
+      }
+
       toast.success("Profile updated.");
       setIsEditing(false);
     } catch (err) {
-      console.error("Failed to update client profile in Supabase:", err);
+      console.error("Failed to update client profile:", err);
       toast.error("Could not save your profile changes. Please try again.");
     } finally {
       setLoading(false);
@@ -140,6 +142,35 @@ const Profile: React.FC = () => {
                 />
               </div>
 
+              {/* Account Type */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Account Type</label>
+                <select
+                  name="account_type"
+                  value={formData.account_type}
+                  onChange={handleChange}
+                  className="p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">Select account type</option>
+                  <option value="personal">Personal</option>
+                  <option value="business">Business</option>
+                  <option value="enterprise">Enterprise</option>
+                </select>
+              </div>
+
+              {/* Building Count */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Building Count</label>
+                <input
+                  type="number"
+                  name="building_count"
+                  value={formData.building_count}
+                  onChange={handleChange}
+                  min="0"
+                  className="p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+
             </div>
 
             {/* Address */}
@@ -151,6 +182,19 @@ const Profile: React.FC = () => {
                 value={formData.address}
                 onChange={handleChange}
                 className="p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
+              />
+            </div>
+
+            {/* Primary WhatsApp */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Primary WhatsApp</label>
+              <input
+                type="text"
+                name="primary_whatsapp"
+                value={formData.primary_whatsapp}
+                onChange={handleChange}
+                placeholder="+234 XXX XXX XXXX"
+                className="p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
 
@@ -240,6 +284,39 @@ const Profile: React.FC = () => {
                 <div>
                   <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Physical Premises Coordinates</h4>
                   <p className="text-sm text-slate-800 dark:text-slate-100 font-semibold mt-0.5 leading-relaxed">{formData.address || "No address configured"}</p>
+                </div>
+              </div>
+
+              {/* Field: Account Type */}
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+                <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 border border-blue-500/10">
+                  <UserCheck className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Account Type</h4>
+                  <p className="text-sm text-slate-800 dark:text-slate-100 font-semibold mt-0.5">{formData.account_type || "Not specified"}</p>
+                </div>
+              </div>
+
+              {/* Field: Building Count */}
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+                <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 border border-blue-500/10">
+                  <Building2 className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Registered Buildings</h4>
+                  <p className="text-sm text-slate-800 dark:text-slate-100 font-semibold mt-0.5">{formData.building_count || "0"}</p>
+                </div>
+              </div>
+
+              {/* Field: Primary WhatsApp */}
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+                <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 border border-blue-500/10">
+                  <Smartphone className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Primary WhatsApp</h4>
+                  <p className="text-sm text-slate-800 dark:text-slate-100 font-semibold mt-0.5">{formData.primary_whatsapp || "Not configured"}</p>
                 </div>
               </div>
             </div>

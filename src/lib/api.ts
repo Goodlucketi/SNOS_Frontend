@@ -53,6 +53,17 @@ export interface ClientProfile {
   metadata?: Record<string, any>;
 }
 
+export interface ClientProfileMetadata {
+  name?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  address?: string;
+  account_type?: string;
+  building_count?: string | number;
+  primary_whatsapp?: string;
+}
+
 export async function getClientProfile(id: string): Promise<ClientProfile | null> {
   const { data, error } = await supabase.from('clients').select('*').eq('id', id).maybeSingle();
   if (error) {
@@ -62,6 +73,15 @@ export async function getClientProfile(id: string): Promise<ClientProfile | null
   return data;
 }
 
+export async function getClientProfileFromMetadata(id: string): Promise<ClientProfileMetadata> {
+  const { data, error } = await supabase.from('clients').select('metadata').eq('id', id).maybeSingle();
+  if (error) {
+    console.error('Error fetching client profile from metadata:', error.message);
+    throw error;
+  }
+  return data?.metadata?.profile || {};
+}
+
 export async function updateClientProfile(id: string, updates: Partial<ClientProfile>): Promise<ClientProfile> {
   const { data, error } = await supabase.from('clients').update(updates).eq('id', id).select().single();
   if (error) {
@@ -69,6 +89,23 @@ export async function updateClientProfile(id: string, updates: Partial<ClientPro
     throw error;
   }
   return data;
+}
+
+export async function updateClientProfileInMetadata(id: string, updates: Partial<ClientProfileMetadata>): Promise<ClientProfileMetadata> {
+  const existing = await getClientProfileFromMetadata(id);
+  const merged = { ...existing, ...updates };
+  const { data, error } = await supabase
+    .from('clients')
+    .update({ metadata: { profile: merged } })
+    .eq('id', id)
+    .select('metadata')
+    .single();
+
+  if (error) {
+    console.error('Error updating client profile in metadata:', error.message);
+    throw error;
+  }
+  return data?.metadata?.profile || merged;
 }
 
 // ---------------------------------------------------------------------------
@@ -134,25 +171,53 @@ export interface ClientEvent {
   id: string;
   client_id: string;
   sensor_id?: string;
-  snoc_user_id?: string;
+  code?: string;
   message?: string;
   image?: string;
-  metadata?: { status?: 'unread' | 'in-progress' | 'complete' | 'completed'; [key: string]: any };
+  occurred_at?: string;
+  occured_at?: string;
   created_at: string;
+  metadata?: { status?: 'unread' | 'in-progress' | 'complete' | 'completed'; [key: string]: any };
 }
 
-export async function getClientEvents(clientId: string): Promise<ClientEvent[]> {
-  const { data, error } = await supabase
+export interface PaginatedEvents {
+  data: ClientEvent[];
+  count: number;
+}
+
+export async function getClientEvents(clientId: string, options?: { limit?: number; offset?: number }): Promise<PaginatedEvents> {
+  let query = supabase
     .from('rf_events')
-    .select('*')
+    .select('*', { count: 'exact' })
     .eq('client_id', clientId)
-    .order('created_at', { ascending: false });
+    .order('occurred_at', { ascending: false });
+
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+  if (options?.offset) {
+    query = query.range(options.offset, options.offset + (options.limit || 50) - 1);
+  }
+
+  const { data, error, count } = await query;
 
   if (error) {
     console.error('Error fetching client events:', error.message);
     throw error;
   }
-  return data ?? [];
+  return { data: data ?? [], count: count ?? 0 };
+}
+
+export async function updateEventStatus(eventId: string, status: 'unread' | 'in-progress' | 'complete' | 'completed'): Promise<void> {
+  const { error } = await supabase
+    .from('rf_events')
+    .update({ metadata: { status } })
+    .eq('id', eventId);
+
+  if (error) {
+    console.error('Error updating event status:', error.message);
+    throw error;
+  }
 }
 
 // ---------------------------------------------------------------------------

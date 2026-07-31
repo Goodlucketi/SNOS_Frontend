@@ -141,7 +141,7 @@ const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose })
 
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-950/60 border border-slate-800 text-slate-400 text-[11px] font-mono font-bold">
                   <Server className="w-3.5 h-3.5" />
-                  GATEWAY: {alert.user_id}
+                  GATEWAY: {alert.client_id}
                 </span>
               </div>
             </div>
@@ -150,7 +150,7 @@ const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose })
             <div className="bg-slate-950/60 border border-slate-850 p-4 rounded-xl">
               <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-slate-500 block mb-1">Incident Description</span>
               <p className="text-sm font-bold text-slate-200 leading-relaxed">
-                {alert.message_text}
+                {alert.message}
               </p>
             </div>
 
@@ -158,11 +158,11 @@ const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose })
             <div className="flex items-center justify-between text-xs text-slate-400 border-t border-slate-850 pt-3">
               <div className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-slate-500" />
-                <span>Detection: <strong className="text-slate-200 font-semibold">{alert.timestamp.split(' ')[0]}</strong></span>
+                <span>Detection: <strong className="text-slate-200 font-semibold">{alert.occurred_at.split('T')[0]}</strong></span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-slate-500" />
-                <span>System Time: <strong className="text-slate-200 font-mono font-semibold">{alert.timestamp.split(' ')[1] || alert.timestamp} (UTC)</strong></span>
+                <span>System Time: <strong className="text-slate-200 font-mono font-semibold">{alert.occurred_at.split('T')[1]?.split('.')[0] || alert.occurred_at} (UTC)</strong></span>
               </div>
             </div>
           </div>
@@ -204,7 +204,7 @@ const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose })
 
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-850 border border-slate-200/50 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-xs font-mono font-bold">
               <Server className="w-3.5 h-3.5" />
-              GATEWAY: {alert.user_id}
+              GATEWAY: {alert.client_id}
             </span>
           </div>
 
@@ -212,7 +212,7 @@ const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose })
           <div className="bg-slate-55 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-850 p-5 rounded-2xl">
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450 dark:text-slate-500 block mb-1">Command Summary</span>
             <p className="text-base font-extrabold text-slate-900 dark:text-white leading-relaxed">
-              {alert.message_text}
+              {alert.message}
             </p>
           </div>
 
@@ -222,14 +222,14 @@ const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose })
               <span className="text-[10px] font-mono font-semibold text-slate-400 dark:text-slate-500 uppercase">Detection Date</span>
               <div className="flex items-center gap-1.5 text-sm font-bold text-slate-750 dark:text-slate-200">
                 <Calendar className="w-4 h-4 text-blue-500" />
-                <span>{alert.timestamp.split(' ')[0]}</span>
+                <span>{alert.occurred_at.split('T')[0]}</span>
               </div>
             </div>
             <div className="space-y-1">
               <span className="text-[10px] font-mono font-semibold text-slate-400 dark:text-slate-500 uppercase">Detection Time</span>
               <div className="flex items-center gap-1.5 text-sm font-mono font-bold text-slate-750 dark:text-slate-200">
                 <Clock className="w-4 h-4 text-blue-500" />
-                <span>{alert.timestamp.split(' ')[1] || alert.timestamp}</span>
+                <span>{alert.occurred_at.split('T')[1]?.split('.')[0] || alert.occurred_at.split('T')[1]} (UTC)</span>
               </div>
             </div>
           </div>
