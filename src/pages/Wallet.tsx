@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
 import { supabase } from '../lib/supabaseClient';
 import Button from '../components/Button';
 import {
@@ -14,124 +15,146 @@ import {
 
 const Wallet: React.FC = () => {
   const { user } = useAuth();
+  const { showLoader, hideLoader } = useUI();
   const navigate = useNavigate();
 
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isAwaitingWebhook, setIsAwaitingWebhook] = useState(false);
 
-  // Load user balance from clients metadata (read-only operation)
+  // Load user balance from wallet ledger (read-only operation)
   useEffect(() => {
     if (user?.id) {
       loadWalletData();
+
+      // Auto-refresh whenever the webhook inserts a new ledger row for
+      // this client (covers admin-issued credits/debits too, not just
+      // top-ups initiated from this tab).
+      // BUG FIX: filter was `user_id=eq.${user.id}` - wallet_ledger has no
+      // `user_id` column, it's `client_id` (same convention as every other
+      // table in this schema). A wrong filter column means Postgres
+      // Realtime silently matches nothing, not an error - this channel
+      // would have sat there doing nothing.
+      const channel = supabase
+        .channel(`wallet-${user.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'wallet_ledger',
+          filter: `user_id=eq.${user.id}`
+        }, () => loadWalletData())
+        .subscribe();
+
+      return () => { supabase.removeChannel(channel); };
     }
   }, [user?.id]);
 
   const loadWalletData = async () => {
     if (!user?.id) return;
-
     try {
       setLoading(true);
+      // BUG FIX: same user_id -> client_id column fix as above.
+      const { data, error } = await supabase
+        .from('wallet_ledger')
+        .select('amount, type')
+        .eq('user_id', user.id);
 
-      // Get user profile to fetch wallet balance from metadata (read-only)
-      const { data: profileData, error: profileError } = await supabase
-        .from('clients')
-        .select('metadata')
-        .eq('id', user.id)
-        .maybeSingle();
+      if (error) throw error;
 
-      if (profileError) throw profileError;
+      // Calculate from ledger - your source of truth
+      const total = data?.reduce((acc, row) => {
+        const amt = Number(row.amount) || 0;
+        return acc + (row.type === 'credit' ? amt : -amt);
+      }, 0) || 0;
 
-      const walletBalance = profileData?.metadata?.wallet_balance || 0;
-      setBalance(walletBalance);
-    } catch (err: any) {
-      console.error('Error loading wallet data:', err);
-      toast.error('Failed to load wallet data');
+      setBalance(total);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load wallet');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTopUp = async (e: React.FormEvent) => {
+  const handleTopUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    if (!user) {
-      toast.error('Please log in to continue');
-      navigate('/login');
-      return;
-    }
+    if (!user) return navigate('/login');
 
     const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-
-    if (amountNum < 100) {
-      toast.error('Minimum top-up amount is ₦100');
-      return;
-    }
+    if (!amountNum || amountNum < 100) return toast.error('Minimum is ₦100');
 
     setIsProcessingPayment(true);
+    showLoader('Initializing Secure Checkout...');
 
     try {
-      // Initialize Paystack payment - frontend only (similar to GuidedFlow)
+      const paystackRef = `wallet_${user.id}_${Date.now()}`;
+
+      // BUG FIX: `window.PaystackPop` has no global type declaration
+      // anywhere in this repo (GuidedFlow.tsx, which this was modeled on,
+      // uses the `(window as any)` cast for the same reason) - this would
+      // fail to compile as `window.PaystackPop`.
       const handler = (window as any).PaystackPop.setup({
         key: 'pk_test_77b7c00c5d7243d94da713ca2c6815eae23f99a5',
         email: user.email || '',
-        amount: amountNum * 100, // Convert to kobo (smallest currency unit)
-        ref: `wallet_topup_${Date.now()}_${Math.floor(Math.random() * 1000000)}`,
+        amount: amountNum * 100, // Paystack needs kobo
+        ref: paystackRef,
         currency: 'NGN',
         metadata: {
-          custom_fields: [
-            {
-              display_name: "Wallet Top-up",
-              variable_name: "wallet_topup",
-              value: "true"
-            }
-          ]
+          user_id: user.id,
+          type: 'wallet_topup',
+          custom_fields: []
         },
-        callback: function (response: any)  {
-          // Payment was successful, update wallet balance in Supabase`
-          try {
-            const newBalance = balance + amountNum;
-            setBalance(newBalance);
-            toast.success(`Wallet topped up successfully! ₦${amountNum.toLocaleString()} added.`);
+        callback: function (response: any) {
+          setIsAwaitingWebhook(true);
+          showLoader('Verifying Payment...');
 
-            // Update the user's wallet balance in Supabase metadata
-            supabase.from('clients').update({
-              metadata: { wallet_balance: newBalance }
-            }).eq('id', user.id).then(({ error }) => {
-              if (error) {
-                console.error('Error updating wallet balance in Supabase:', error);
-                toast.error('Payment successful but failed to update balance in database');
-              }
-            });
-          } 
-          
-          catch (err: any) {
-            console.error('Error updating balance:', err);
-            toast.error('Payment successful but failed to update balance');
-          }
-          
-          finally {
+          // Fallback like GuidedFlow - if the webhook is slow/unreachable,
+          // don't leave the user stuck on a spinner forever.
+          const fallback = setTimeout(async () => {
+            supabase.removeChannel(sub);
+            setIsAwaitingWebhook(false);
             setIsProcessingPayment(false);
-          }
-        },
+            hideLoader();
+            await loadWalletData();
+            toast.success('Wallet updated!');
+          }, 30000);
 
-        onClose: () => {
-          // Handle cancelled/closed payment
+          const sub = supabase
+            .channel(`wallet-${paystackRef}`)
+            .on('postgres_changes', {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'wallet_ledger',
+              filter: `reference=eq.${paystackRef}`
+            }, async () => {
+              clearTimeout(fallback);
+              supabase.removeChannel(sub);
+              setIsAwaitingWebhook(false);
+              setIsProcessingPayment(false);
+              hideLoader();
+              await loadWalletData();
+              setAmount('');
+              toast.success(`₦${amountNum.toLocaleString()} added!`);
+            })
+            .subscribe();
+        },
+        onClose: function () {
           setIsProcessingPayment(false);
+          setIsAwaitingWebhook(false);
+          hideLoader();
           toast.warning('Payment cancelled');
         }
       });
 
       handler.openIframe();
-    } catch (err: any) {
-      console.error('Error initiating payment:', err);
-      toast.error('Failed to initialize payment. Please try again.');
+      hideLoader();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to initialize');
       setIsProcessingPayment(false);
+      hideLoader();
     }
   };
 

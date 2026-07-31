@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // 3. Check organization_admins junction for admin tier
     const { data: adminRow } = await supabase
-      .from('organization_admins')
+      .from('principals')
       .select('tier, organization_id, organizations(name)')
       .eq('client_id', userId)
       .maybeSingle();
