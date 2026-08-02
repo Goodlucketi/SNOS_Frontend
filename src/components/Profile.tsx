@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User as UserIcon, Mail, Phone, MapPin, Compass, Radio, Building2, Smartphone, UserCheck } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
-import { updateClientProfile, updateClientProfileInMetadata } from '../lib/api';
+import { updateClientProfileComplete } from '../lib/api';
 import Button from './Button';
 
 const Profile: React.FC = () => {
@@ -25,14 +25,19 @@ const Profile: React.FC = () => {
   useEffect(() => {
     if (clientData) {
       const metadataProfile = clientData.metadata?.profile || {};
+      // Direct columns are arrays (text[]), so take first element or join
+      const emailsArr = Array.isArray(clientData.emails) ? clientData.emails : [];
+      const phonesArr = Array.isArray(clientData.phones) ? clientData.phones : [];
+      const whatsappsArr = Array.isArray(clientData.whatsapps) ? clientData.whatsapps : [];
+
       setFormData({
         name: clientData.name || "",
-        emails: clientData.emails || authUser?.email || "",
+        emails: emailsArr[0] || authUser?.email || "",
         location: clientData.location || "",
-        phones: clientData.phones || "",
-        account_type: clientData.account_type || "",
-        building_count: clientData.building_count || "",
-        primary_whatsapp: clientData.primary_whatsapp || "",
+        phones: phonesArr[0] || "",
+        account_type: clientData.account_type || metadataProfile.account_type || "",
+        building_count: metadataProfile.building_count || "",
+        primary_whatsapp: clientData.primary_whatsapp || whatsappsArr[0] || "",
       });
     }
   }, [clientData, authUser]);
@@ -46,14 +51,20 @@ const Profile: React.FC = () => {
     if (!clientData?.id) return;
     setLoading(true);
     try {
-      // Update direct columns on clients table
-      const { account_type, building_count, primary_whatsapp, ...directColumns } = formData;
-      await updateClientProfile(clientData.id, directColumns);
+      // Convert form data to match the new complete update function
+      // Form uses single strings for emails/phones/whatsapps, but DB uses arrays
+      const updates = {
+        name: formData.name,
+        emails: formData.emails ? [formData.emails] : [],
+        phones: formData.phones ? [formData.phones] : [],
+        whatsapps: formData.primary_whatsapp ? [formData.primary_whatsapp] : [],
+        location: formData.location,
+        account_type: formData.account_type,
+        building_count: formData.building_count,
+        primary_whatsapp: formData.primary_whatsapp,
+      };
 
-      // Also update metadata for fields not yet migrated to columns
-      if (account_type || building_count || primary_whatsapp) {
-        await updateClientProfileInMetadata(clientData.id, { account_type, building_count, primary_whatsapp });
-      }
+      await updateClientProfileComplete(clientData.id, updates);
 
       toast.success("Profile updated.");
       setIsEditing(false);

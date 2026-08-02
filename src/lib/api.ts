@@ -108,6 +108,65 @@ export async function updateClientProfileInMetadata(id: string, updates: Partial
 }
 
 // ---------------------------------------------------------------------------
+// Client profile - complete update (direct columns + metadata)
+// ---------------------------------------------------------------------------
+
+export interface ClientProfileComplete {
+  name?: string;
+  emails?: string[];
+  phones?: string[];
+  whatsapps?: string[];
+  location?: string;
+  account_type?: string;
+  building_count?: string | number;
+  primary_whatsapp?: string;
+}
+
+export async function updateClientProfileComplete(id: string, updates: ClientProfileComplete): Promise<void> {
+  // Build direct column updates - these are actual columns on the clients table
+  const directUpdates: Record<string, any> = {};
+
+  if (updates.name !== undefined) directUpdates.name = updates.name;
+  if (updates.emails !== undefined) directUpdates.emails = updates.emails;
+  if (updates.phones !== undefined) directUpdates.phones = updates.phones;
+  if (updates.whatsapps !== undefined) directUpdates.whatsapps = updates.whatsapps;
+  if (updates.location !== undefined) directUpdates.location = updates.location;
+  if (updates.account_type !== undefined) directUpdates.account_type = updates.account_type;
+  if (updates.primary_whatsapp !== undefined) {
+    directUpdates.primary_whatsapp = updates.primary_whatsapp;
+    // Also add to whatsapps array if not already there
+    const existingWhatsapps = updates.whatsapps || [];
+    if (!existingWhatsapps.includes(updates.primary_whatsapp)) {
+      directUpdates.whatsapps = [...existingWhatsapps, updates.primary_whatsapp];
+    }
+  }
+  // building_count is not a direct column, stays in metadata
+
+  // Update direct columns if any
+  if (Object.keys(directUpdates).length > 0) {
+    const { error: directError } = await supabase
+      .from('clients')
+      .update(directUpdates)
+      .eq('id', id);
+    if (directError) {
+      console.error('Error updating direct client profile columns:', directError.message);
+      throw directError;
+    }
+  }
+
+  // Also update metadata for building_count and any other metadata-only fields
+  const metadataUpdates: Partial<ClientProfileMetadata> = {};
+  if (updates.building_count !== undefined) metadataUpdates.building_count = updates.building_count;
+  // Keep other fields in metadata for backward compatibility if they exist there
+  if (updates.account_type !== undefined) metadataUpdates.account_type = updates.account_type;
+  if (updates.primary_whatsapp !== undefined) metadataUpdates.primary_whatsapp = updates.primary_whatsapp;
+
+  if (Object.keys(metadataUpdates).length > 0) {
+    await updateClientProfileInMetadata(id, metadataUpdates);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Notification preferences + alert contacts
 // These live inside clients.metadata (jsonb) as
 // { notification_preferences: {...}, alert_contacts: [...] }.
@@ -126,13 +185,20 @@ export interface NotificationPreferences {
 export interface AlertContact {
   id: string;
   name: string;
-  channel: 'sms' | 'email' | 'whatsapp';
-  value: string;
+  phone: string;
+  email: string;
+  whatsapp: string;
+}
+
+export interface SecondaryContact {
+  name: string;
+  phone: string;
 }
 
 export interface ClientMetadata {
   notification_preferences?: NotificationPreferences;
   alert_contacts?: AlertContact[];
+  secondary_contacts?: SecondaryContact[];
   [key: string]: any;
 }
 
@@ -160,6 +226,71 @@ export async function patchClientMetadata(id: string, patch: Partial<ClientMetad
     throw error;
   }
   return data?.metadata || merged;
+}
+
+// ---------------------------------------------------------------------------
+// Client settings - updates both metadata AND direct columns on clients table
+// ---------------------------------------------------------------------------
+
+export interface ClientSettings {
+  notification_preferences?: NotificationPreferences;
+  secondary_contacts?: SecondaryContact[];
+  alert_contacts?: AlertContact[];
+  primary_whatsapp?: string;
+}
+
+export async function updateClientSettings(id: string, settings: ClientSettings): Promise<void> {
+  // Build direct column updates
+  const directUpdates: Record<string, any> = {};
+
+  if (settings.notification_preferences) {
+    directUpdates.alert_preference = settings.notification_preferences;
+  }
+
+  if (settings.alert_contacts && settings.alert_contacts.length > 0) {
+    // Collect unique phones, emails, whatsapps from alert contacts
+    const phones = [...new Set(settings.alert_contacts.map(c => c.phone).filter(Boolean))];
+    const emails = [...new Set(settings.alert_contacts.map(c => c.email).filter(Boolean))];
+    const whatsapps = [...new Set(settings.alert_contacts.map(c => c.whatsapp).filter(Boolean))];
+
+    if (phones.length > 0) directUpdates.phones = phones;
+    if (emails.length > 0) directUpdates.emails = emails;
+    if (whatsapps.length > 0) directUpdates.whatsapps = whatsapps;
+  }
+
+  if (settings.secondary_contacts && settings.secondary_contacts.length > 0) {
+    const secondary = settings.secondary_contacts[0];
+    if (secondary.phone) {
+      directUpdates.phones = [...new Set([...(directUpdates.phones || []), secondary.phone])];
+    }
+  }
+
+  if (settings.primary_whatsapp) {
+    directUpdates.primary_whatsapp = settings.primary_whatsapp;
+    directUpdates.whatsapps = [...new Set([...(directUpdates.whatsapps || []), settings.primary_whatsapp])];
+  }
+
+  // Update direct columns if any
+  if (Object.keys(directUpdates).length > 0) {
+    const { error: directError } = await supabase
+      .from('clients')
+      .update(directUpdates)
+      .eq('id', id);
+    if (directError) {
+      console.error('Error updating direct client columns:', directError.message);
+      throw directError;
+    }
+  }
+
+  // Also update metadata for backward compatibility and additional fields
+  const metadataPatch: Partial<ClientMetadata> = {};
+  if (settings.notification_preferences) metadataPatch.notification_preferences = settings.notification_preferences;
+  if (settings.secondary_contacts) metadataPatch.secondary_contacts = settings.secondary_contacts;
+  if (settings.alert_contacts) metadataPatch.alert_contacts = settings.alert_contacts;
+
+  if (Object.keys(metadataPatch).length > 0) {
+    await patchClientMetadata(id, metadataPatch);
+  }
 }
 
 // ---------------------------------------------------------------------------

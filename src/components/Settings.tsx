@@ -2,46 +2,38 @@ import React, { useEffect, useState } from 'react';
 import { Bell, Phone, Save, Lock, Plus, Trash2, UserPlus } from 'lucide-react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
-import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { updateClientSettings, AlertContact } from '../lib/api';
 import Button from './Button';
 
 const Settings: React.FC = () => {
-  useTheme();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, clientData } = useAuth();
 
-  // Notification preferences - now backed by the real API
-  // (users/update_settings.php + users/read_settings.php).
+  // Notification preferences, secondary contact, and alert contacts all
+  // live in clients.metadata now. clientData already carries the current
+  // metadata via AuthContext, so we hydrate local state from that instead
+  // of a separate fetch.
   const [smsEnabled, setSmsEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [whatsappEnabled, setWhatsappEnabled] = useState(false);
   const [loadingPrefs, setLoadingPrefs] = useState(true);
 
-  const [secondaryContact, setSecondaryContact] = useState("+234 803-555-0199");
-  const [secondaryName, setSecondaryName] = useState("Ikeja Patrol Team");
+  const [secondaryContact, setSecondaryContact] = useState("");
+  const [secondaryName, setSecondaryName] = useState("");
 
   // Additional alert contacts (max 5)
-  interface AlertContact {
-    id: number;
-    name: string;
-    phone: string;
-    email: string;
-    whatsapp: string;
-  }
   const [contacts, setContacts] = useState<AlertContact[]>([]);
-  const [nextContactId, setNextContactId] = useState(1);
 
   const addContact = () => {
     if (contacts.length >= 5) return;
-    setContacts([...contacts, { id: nextContactId, name: '', phone: '', email: '', whatsapp: '' }]);
-    setNextContactId(nextContactId + 1);
+    setContacts([...contacts, { id: crypto.randomUUID(), name: '', phone: '', email: '', whatsapp: '' }]);
   };
 
-  const removeContact = (id: number) => {
+  const removeContact = (id: string) => {
     setContacts(contacts.filter(c => c.id !== id));
   };
 
-  const updateContact = (id: number, field: keyof AlertContact, value: string) => {
+  const updateContact = (id: string, field: keyof Omit<AlertContact, 'id'>, value: string) => {
     setContacts(contacts.map(c => c.id === id ? { ...c, [field]: value } : c));
   };
 
@@ -52,77 +44,77 @@ const Settings: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
- useEffect(() => {
-  const loadPreferences = async () => {
-    if (!currentUser?.id) {
-      setLoadingPrefs(false);   // don't leave toggles stuck disabled
-      return;
-    }
-    try {
-      const res = await axios.get(`/api/users/read_settings.php?user_id=${currentUser.id}`);
-      const prefs = res.data?.preferences;
+  useEffect(() => {
+    if (clientData) {
+      const metadata = clientData.metadata || {};
+
+      const prefs = metadata.notification_preferences;
       if (prefs) {
         setEmailEnabled(!!prefs.email);
         setSmsEnabled(!!prefs.sms);
         setWhatsappEnabled(!!prefs.whatsapp);
       }
+
+      const secondary = metadata.secondary_contacts;
+      if (secondary && secondary.length > 0) {
+        setSecondaryName(secondary[0].name || "");
+        setSecondaryContact(secondary[0].phone || "");
+      }
+
+      setContacts(metadata.alert_contacts || []);
+    }
+    setLoadingPrefs(false);
+  }, [clientData]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientData?.id) return;
+    setSaving(true);
+    try {
+      await updateClientSettings(clientData.id, {
+        notification_preferences: { email: emailEnabled, sms: smsEnabled, whatsapp: whatsappEnabled },
+        secondary_contacts: [{ name: secondaryName, phone: secondaryContact }],
+        alert_contacts: contacts,
+        primary_whatsapp: contacts.find(c => c.whatsapp)?.whatsapp || '',
+      });
+      toast.success("Notification preferences saved.");
     } catch (err) {
-      console.error("Failed to load saved notification preferences:", err);
+      console.error("Failed to save settings:", err);
+      toast.error("Could not save preferences. Please try again.");
     } finally {
-      setLoadingPrefs(false);
+      setSaving(false);
     }
   };
-  loadPreferences();
-}, [currentUser]);
 
-const handleSave = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!currentUser?.id) return;
-  setSaving(true);
-  try {
-    await axios.post("/api/users/update_settings.php", {
-      user_id: currentUser.id,
-      preferences: { email: emailEnabled, sms: smsEnabled, whatsapp: whatsappEnabled },
-      contacts: contacts.map(({ id, ...rest }) => rest),
-    });
-    toast.success("Notification preferences saved.");
-  } catch (err: any) {
-    console.error("Failed to save settings:", err.response?.data || err.message);
-    toast.error(err.response?.data?.message || "Could not save preferences to the server.");
-  } finally {
-    setSaving(false);
-  }
-};
-
-const handleChangePassword = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!currentUser?.id) return;
-  if (!newPassword || newPassword !== confirmPassword) {
-    toast.error("New password and confirmation must match.");
-    return;
-  }
-  if (newPassword.length < 8) {
-    toast.error("New password must be at least 8 characters.");
-    return;
-  }
-  setChangingPassword(true);
-  try {
-    await axios.post("/api/users/change_password.php", {
-      user_id: currentUser.id,
-      current_password: currentPassword,
-      new_password: newPassword,
-    });
-    toast.success("Password updated successfully.");
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-  } catch (err: any) {
-    console.error("Failed to change password:", err.response?.data || err.message);
-    toast.error(err.response?.data?.message || "Could not update your password.");
-  } finally {
-    setChangingPassword(false);
-  }
-};
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser?.id) return;
+    if (!newPassword || newPassword !== confirmPassword) {
+      toast.error("New password and confirmation must match.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters.");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await axios.post("/api/users/change_password.php", {
+        user_id: currentUser.id,
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      toast.success("Password updated successfully.");
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      console.error("Failed to change password:", err.response?.data || err.message);
+      toast.error(err.response?.data?.message || "Could not update your password.");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   return (
     <div className="space-y-6 font-sans animate-fade-in">
@@ -197,7 +189,6 @@ const handleChangePassword = async (e: React.FormEvent) => {
             <Phone className="w-4 h-4 text-blue-500" />
             Designated Rapid Response Dispatch
           </h3>
-          <p className="text-[11px] text-amber-600 dark:text-amber-400 -mt-3">Not yet saved to the server - resets on next login.</p>
 
           <div className="grid md:grid-cols-2 gap-5">
             <div className="flex flex-col gap-1.5">
@@ -252,14 +243,14 @@ const handleChangePassword = async (e: React.FormEvent) => {
           )}
 
           <div className="space-y-4">
-            {contacts.map((contact) => (
+            {contacts.map((contact, index) => (
               <div
                 key={contact.id}
                 className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl p-4 space-y-3 relative animate-fade-in"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                    Contact #{contact.id}
+                    Contact #{index + 1}
                   </span>
                   <button
                     type="button"
