@@ -1,25 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Package, Truck, Wrench, ChevronDown, ChevronUp } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
-
-interface OrderItem {
-  name?: string;
-  quantity?: number;
-  price?: number;
-}
-
-interface Order {
-  id: string;
-  client_id: string;
-  status: string;
-  subtotal?: number;
-  shipping_fee?: number;
-  installation_fee?: number;
-  cart_payload?: OrderItem[] | { items?: OrderItem[] };
-  created_at?: string;
-  updated_at?: string;
-}
+import { getClientOrders, Order } from '../lib/api';
 
 const formatNaira = (value?: number) =>
   typeof value === 'number'
@@ -37,11 +19,17 @@ const getStatusBadge = (status: string) => {
     cancelled: 'bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400',
   };
   return (
-    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${styles[normalized] || 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
+    <span className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide ${styles[normalized] || 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
       {status || 'Unknown'}
     </span>
   );
 };
+
+interface OrderItem {
+  name?: string;
+  quantity?: number;
+  price?: number;
+}
 
 const Orders: React.FC = () => {
   const { user } = useAuth();
@@ -52,16 +40,14 @@ const Orders: React.FC = () => {
   useEffect(() => {
     const fetchOrders = async () => {
       if (!user?.id) return;
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('client_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        setOrders(data as any);
+      try {
+        const result = await getClientOrders(user.id);
+        setOrders(result.data);
+      } catch (err) {
+        console.error('Failed to fetch orders:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchOrders();
@@ -79,18 +65,18 @@ const Orders: React.FC = () => {
   return (
     <div className="space-y-6 font-sans animate-fade-in">
       <div>
-        <h2 className="text-2xl font-display font-extrabold text-slate-900 dark:text-white">My Orders</h2>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+        <h2 className="text-3xl font-display font-extrabold text-slate-900 dark:text-white">My Orders</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-base mt-1">
           Track equipment purchases, shipping, and installation status.
         </p>
       </div>
 
       {loading ? (
-        <div className="text-sm text-slate-400 py-12 text-center">Loading order history...</div>
+        <div className="text-base text-slate-400 py-12 text-center">Loading order history...</div>
       ) : orders.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-850 rounded-2xl p-10 text-center">
           <Package className="w-8 h-8 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
-          <p className="text-sm text-slate-500 dark:text-slate-400">You haven't placed any orders yet.</p>
+          <p className="text-base text-slate-500 dark:text-slate-400">You haven't placed any orders yet.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -112,10 +98,10 @@ const Orders: React.FC = () => {
                       <Package className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-800 dark:text-white">
+                      <h4 className="text-base font-bold text-slate-800 dark:text-white">
                         Order #{order.id.slice(0, 8)}
                       </h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
+                      <p className="text-sm text-slate-400 mt-0.5">
                         {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'Date unknown'}
                       </p>
                     </div>
@@ -123,7 +109,7 @@ const Orders: React.FC = () => {
 
                   <div className="flex items-center gap-4">
                     <div className="text-right hidden sm:block">
-                      <p className="text-sm font-bold text-slate-800 dark:text-white">{formatNaira(getTotal(order))}</p>
+                      <p className="text-base font-bold text-slate-800 dark:text-white">{formatNaira(getTotal(order))}</p>
                     </div>
                     {getStatusBadge(order.status)}
                     {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
@@ -136,7 +122,7 @@ const Orders: React.FC = () => {
                     {items.length > 0 && (
                       <div className="space-y-2">
                         {items.map((item, idx) => (
-                          <div key={idx} className="flex justify-between text-sm">
+                          <div key={idx} className="flex justify-between text-base">
                             <span className="text-slate-600 dark:text-slate-300">
                               {item.name || 'Item'} {item.quantity ? `× ${item.quantity}` : ''}
                             </span>
@@ -147,20 +133,20 @@ const Orders: React.FC = () => {
                     )}
 
                     {/* Fee breakdown */}
-                    <div className="space-y-1.5 pt-3 border-t border-dashed border-slate-200 dark:border-slate-800 text-xs">
+                    <div className="space-y-2 pt-3 border-t border-dashed border-slate-200 dark:border-slate-800 text-sm">
                       <div className="flex justify-between text-slate-500 dark:text-slate-400">
                         <span>Subtotal</span>
                         <span>{formatNaira(order.subtotal)}</span>
                       </div>
                       <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                        <span className="flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> Shipping</span>
+                        <span className="flex items-center gap-1"><Truck className="w-4 h-4" /> Shipping</span>
                         <span>{formatNaira(order.shipping_fee)}</span>
                       </div>
                       <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                        <span className="flex items-center gap-1"><Wrench className="w-3.5 h-3.5" /> Installation</span>
+                        <span className="flex items-center gap-1"><Wrench className="w-4 h-4" /> Installation</span>
                         <span>{formatNaira(order.installation_fee)}</span>
                       </div>
-                      <div className="flex justify-between font-bold text-slate-800 dark:text-white pt-1.5 border-t border-slate-100 dark:border-slate-850">
+                      <div className="flex justify-between font-bold text-base text-slate-800 dark:text-white pt-2 border-t border-slate-100 dark:border-slate-850">
                         <span>Total</span>
                         <span>{formatNaira(getTotal(order))}</span>
                       </div>

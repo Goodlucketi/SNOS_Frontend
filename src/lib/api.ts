@@ -294,6 +294,76 @@ export async function updateClientSettings(id: string, settings: ClientSettings)
 }
 
 // ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+
+export interface OrderItem {
+  name?: string;
+  quantity?: number;
+  price?: number;
+}
+
+export interface Order {
+  id: string;
+  user_id: string;
+  status: string;
+  subtotal: number;
+  shipping_fee: number;
+  installation_fee: number;
+  total_amount: number;
+  cart_payload: OrderItem[] | { items?: OrderItem[] };
+  client_metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+  shipping_snapshot?: Record<string, any> | null;
+}
+
+export interface PaginatedOrders {
+  data: Order[];
+  count: number;
+}
+
+export async function getClientOrders(
+  userId: string,
+  options?: { limit?: number; offset?: number }
+): Promise<PaginatedOrders> {
+  let query = supabase
+    .from('orders')
+    .select('*', { count: 'exact' })
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+  if (options?.offset) {
+    query = query.range(options.offset, options.offset + (options.limit || 20) - 1);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error('Error fetching client orders:', error.message);
+    throw error;
+  }
+  return { data: data ?? [], count: count ?? 0 };
+}
+
+export async function getOrderById(orderId: string): Promise<Order | null> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('id', orderId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching order:', error.message);
+    throw error;
+  }
+  return data;
+}
+
+// ---------------------------------------------------------------------------
 // Events (used as the "Alerts" feed on the client dashboard)
 // ---------------------------------------------------------------------------
 
