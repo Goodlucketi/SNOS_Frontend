@@ -10,10 +10,9 @@ const Profile: React.FC = () => {
 
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
+    emails: "",
     location: "",
-    address: "",
-    phone: "",
+    phones: "",
     account_type: "",
     building_count: "",
     primary_whatsapp: "",
@@ -28,13 +27,12 @@ const Profile: React.FC = () => {
       const metadataProfile = clientData.metadata?.profile || {};
       setFormData({
         name: clientData.name || "",
-        email: clientData.email || authUser?.email || "",
+        emails: clientData.emails || authUser?.email || "",
         location: clientData.location || "",
-        address: clientData.address || "",
-        phone: clientData.phone || "",
-        account_type: metadataProfile.account_type || "",
-        building_count: metadataProfile.building_count || "",
-        primary_whatsapp: metadataProfile.primary_whatsapp || "",
+        phones: clientData.phones || "",
+        account_type: clientData.account_type || "",
+        building_count: clientData.building_count || "",
+        primary_whatsapp: clientData.primary_whatsapp || "",
       });
     }
   }, [clientData, authUser]);
@@ -45,16 +43,16 @@ const Profile: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authUser?.id) return;
+    if (!clientData?.id) return;
     setLoading(true);
     try {
       // Update direct columns on clients table
       const { account_type, building_count, primary_whatsapp, ...directColumns } = formData;
-      await updateClientProfile(authUser.id, directColumns);
+      await updateClientProfile(clientData.id, directColumns);
 
       // Also update metadata for fields not yet migrated to columns
       if (account_type || building_count || primary_whatsapp) {
-        await updateClientProfileInMetadata(authUser.id, { account_type, building_count, primary_whatsapp });
+        await updateClientProfileInMetadata(clientData.id, { account_type, building_count, primary_whatsapp });
       }
 
       toast.success("Profile updated.");
@@ -110,8 +108,8 @@ const Profile: React.FC = () => {
                 <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Email Address</label>
                 <input
                   type="email"
-                  name="email"
-                  value={formData.email}
+                  name="emails"
+                  value={formData.emails}
                   onChange={handleChange}
                   className="p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   required
@@ -123,8 +121,8 @@ const Profile: React.FC = () => {
                 <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Phone Number</label>
                 <input
                   type="text"
-                  name="phone"
-                  value={formData.phone}
+                  name="phones"
+                  value={formData.phones}
                   onChange={handleChange}
                   className="p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
@@ -153,8 +151,7 @@ const Profile: React.FC = () => {
                 >
                   <option value="">Select account type</option>
                   <option value="personal">Personal</option>
-                  <option value="business">Business</option>
-                  <option value="enterprise">Enterprise</option>
+                  <option value="business">Corporate</option>
                 </select>
               </div>
 
@@ -174,7 +171,7 @@ const Profile: React.FC = () => {
             </div>
 
             {/* Address */}
-            <div className="flex flex-col gap-1.5">
+            {/* <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Physical Address</label>
               <textarea
                 name="address"
@@ -183,7 +180,7 @@ const Profile: React.FC = () => {
                 onChange={handleChange}
                 className="p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
               />
-            </div>
+            </div> */}
 
             {/* Primary WhatsApp */}
             <div className="flex flex-col gap-1.5">
@@ -250,7 +247,7 @@ const Profile: React.FC = () => {
                 </div>
                 <div>
                   <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Secure Email</h4>
-                  <p className="text-sm text-slate-800 dark:text-slate-100 font-semibold mt-0.5">{formData.email}</p>
+                  <p className="text-sm text-slate-800 dark:text-slate-100 font-semibold mt-0.5">{formData.emails}</p>
                 </div>
               </div>
 
@@ -261,7 +258,7 @@ const Profile: React.FC = () => {
                 </div>
                 <div>
                   <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Hotline Contact (SIM)</h4>
-                  <p className="text-sm text-slate-800 dark:text-slate-100 font-semibold mt-0.5">{formData.phone || "No phone added"}</p>
+                  <p className="text-sm text-slate-800 dark:text-slate-100 font-semibold mt-0.5">{formData.phones || "No phone added"}</p>
                 </div>
               </div>
 
@@ -277,7 +274,7 @@ const Profile: React.FC = () => {
               </div>
 
               {/* Field: Address */}
-              <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+              {/* <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
                 <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 border border-blue-500/10">
                   <MapPin className="w-4.5 h-4.5" />
                 </div>
@@ -285,7 +282,7 @@ const Profile: React.FC = () => {
                   <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Physical Premises Coordinates</h4>
                   <p className="text-sm text-slate-800 dark:text-slate-100 font-semibold mt-0.5 leading-relaxed">{formData.address || "No address configured"}</p>
                 </div>
-              </div>
+              </div> */}
 
               {/* Field: Account Type */}
               <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-900">

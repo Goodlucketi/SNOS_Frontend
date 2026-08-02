@@ -4,7 +4,6 @@ export interface User {
   email: string;
   phone?: string;
   location?: string;
-  address?: string;
   role?: 'user' | 'admin' | 'super_admin';
 }
 

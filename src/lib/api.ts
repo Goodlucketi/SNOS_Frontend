@@ -58,7 +58,6 @@ export interface ClientProfileMetadata {
   email?: string;
   phone?: string;
   location?: string;
-  address?: string;
   account_type?: string;
   building_count?: string | number;
   primary_whatsapp?: string;
