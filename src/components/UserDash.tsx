@@ -1,22 +1,51 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Bell, ShieldAlert, CheckCircle2, Clock, MapPin, KeyRound, Radio, Signal } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Alert } from '../types';
 import { User } from '../context/AuthContext';
+import { getDashboardCounts, DashboardCounts } from '../lib/api';
 
 interface OutletContextType {
-  alerts: Alert[];
+  events: Alert[];
   user: User;
   clientData: any;
 }
 
 const UserDash: React.FC = () => {
-  const { alerts = [], user = {} as User, clientData = {} } = useOutletContext<OutletContextType>();
+  const { events = [], user = {} as User, clientData = {} } = useOutletContext<OutletContextType>();
 
-  const unreadCount = alerts.filter(alert => alert.status === 'unread').length;
-  const inProgressCount = alerts.filter(alert => alert.status === 'in-progress').length;
-  const completedCount = alerts.filter(alert => alert.status === 'complete' || alert.status === 'completed').length;
+  const [counts, setCounts] = useState<DashboardCounts | null>(null);
+  const [loadingCounts, setLoadingCounts] = useState(true);
+
+  useEffect(() => {
+    if (clientData?.id) {
+      const fetchCounts = async () => {
+        try {
+          const data = await getDashboardCounts(clientData.id);
+          setCounts(data);
+        } catch (err) {
+          console.error('Failed to fetch dashboard counts:', err);
+        } finally {
+          setLoadingCounts(false);
+        }
+      };
+      fetchCounts();
+    } else {
+      setLoadingCounts(false);
+    }
+  }, [clientData?.id]);
+
+  // Use DB counts if available - no fallback to context events (they're paginated)
+  const unreadCount = counts?.events.unread ?? 0;
+
+  const inProgressCount = counts?.events.in_progress ?? 0;
+
+  const completedCount = counts?.events.completed ?? 0;
+
+  const totalSensors = counts?.sensors.total ?? 0;
+  const totalCameras = counts?.cameras.total ?? 0;
+  const totalGateways = counts?.gateways.total ?? 0;
 
   // Generate a friendly local greeting
   const getGreeting = () => {
@@ -25,6 +54,16 @@ const UserDash: React.FC = () => {
     if (hours < 17) return "Good afternoon";
     return "Good evening";
   };
+
+  if (loadingCounts && !clientData?.id) {
+    return (
+      <div className="space-y-8 font-sans animate-fade-in">
+        <div className="text-center py-12">
+          <div className="text-sm text-slate-400">Loading dashboard...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 font-sans animate-fade-in">
@@ -116,57 +155,75 @@ const UserDash: React.FC = () => {
           <span className="text-xs font-semibold text-slate-400 uppercase font-mono">Bound Node: {user?.user_id}</span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Asset 1: LoT */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Asset 1: LoT - Sensors */}
           <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-855 rounded-2xl shadow-sm flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                 <MapPin className="w-5 h-5" />
               </div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Location (LoT)</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Sensors (LoT)</span>
             </div>
             <div>
-              <h4 className="font-display font-bold text-base text-slate-900 dark:text-white truncate">{clientData?.location || "Unspecified Area"}</h4>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 truncate">{clientData?.address || "Lagos, Nigeria"}</p>
+              <h4 className="font-display font-bold text-2xl text-slate-900 dark:text-white">{totalSensors}</h4>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{clientData?.location || "Unspecified Area"}</p>
             </div>
             <div className="mt-2 pt-3 border-t border-slate-100 dark:border-slate-850 flex justify-between items-center text-[10px]">
-              <span className="font-mono text-slate-400">STATUS: SENSORS ARMED</span>
+              <span className="font-mono text-slate-400">ACTIVE SENSORS</span>
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
             </div>
           </div>
 
-          {/* Asset 2: OoT */}
+          {/* Asset 1b: LoT - Cameras */}
+          <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-855 rounded-2xl shadow-sm flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Cameras (LoT)</span>
+            </div>
+            <div>
+              <h4 className="font-display font-bold text-2xl text-slate-900 dark:text-white">{totalCameras}</h4>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{clientData?.location || "Unspecified Area"}</p>
+            </div>
+            <div className="mt-2 pt-3 border-t border-slate-100 dark:border-slate-850 flex justify-between items-center text-[10px]">
+              <span className="font-mono text-slate-400">ACTIVE CAMERAS</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            </div>
+          </div>
+
+          {/* Asset 2: OoT - Gateways */}
           <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-855 rounded-2xl shadow-sm flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
                 <ShieldAlert className="w-5 h-5" />
               </div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Object (OoT)</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Gateways (OoT)</span>
             </div>
             <div>
-              <h4 className="font-display font-bold text-base text-slate-900 dark:text-white">Commercial Properties</h4>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Vehicle Fleet & Vault Locks</p>
+              <h4 className="font-display font-bold text-2xl text-slate-900 dark:text-white">{totalGateways}</h4>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Network Infrastructure</p>
             </div>
             <div className="mt-2 pt-3 border-t border-slate-100 dark:border-slate-850 flex justify-between items-center text-[10px]">
-              <span className="font-mono text-slate-400">STATUS: NO BREACHES</span>
+              <span className="font-mono text-slate-400">ONLINE</span>
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
             </div>
           </div>
 
-          {/* Asset 3: PoT */}
+          {/* Asset 3: PoT - Alert Summary */}
           <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-855 rounded-2xl shadow-sm flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                 <KeyRound className="w-5 h-5" />
               </div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Point (PoT)</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Alerts (PoT)</span>
             </div>
             <div>
-              <h4 className="font-display font-bold text-base text-slate-900 dark:text-white">Secure Safe / Fence Line</h4>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Main Entry Gates & Sector 3 Fence</p>
+              <h4 className="font-display font-bold text-2xl text-slate-900 dark:text-white">{unreadCount + inProgressCount + completedCount}</h4>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Total signals recorded</p>
             </div>
             <div className="mt-2 pt-3 border-t border-slate-100 dark:border-slate-850 flex justify-between items-center text-[10px]">
-              <span className="font-mono text-slate-400">STATUS: RE-SECURED</span>
+              <span className="font-mono text-slate-400">SYSTEM SECURE</span>
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
             </div>
           </div>

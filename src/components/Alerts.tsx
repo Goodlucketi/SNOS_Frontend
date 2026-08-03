@@ -59,7 +59,7 @@ const Alerts: React.FC = () => {
   const filteredEvents = events
     .filter(event => {
       const matchesSearch = event.message.toLowerCase().includes(searchQuery) ||
-        event.code?.toLowerCase().includes(searchQuery);
+        (event.source === 'rf' && event.code?.toLowerCase().includes(searchQuery));
       const matchesStatus = statusFilter === 'all' || event.status === statusFilter;
       return matchesSearch && matchesStatus;
     })

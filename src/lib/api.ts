@@ -408,7 +408,108 @@ export async function getClientEvents(clientId: string, options?: { limit?: numb
   return { data: data ?? [], count: count ?? 0 };
 }
 
-export async function updateEventStatus(eventId: string, status: 'unread' | 'in-progress' | 'complete' | 'completed'): Promise<void> {
+// ---------------------------------------------------------------------------
+// Camera Events
+// ---------------------------------------------------------------------------
+
+export interface CameraEvent {
+  id: string;
+  client_id: string;
+  gateway_id: string;
+  camera_id: string | null;
+  camera_key: string;
+  home_id: string;
+  label: string;
+  zone: string;
+  score: number;
+  started_at: string;
+  ended_at: string | null;
+  thumbnail_ref: string | null;
+  clip_ref: string | null;
+  created_at: string;
+}
+
+export interface PaginatedCameraEvents {
+  data: CameraEvent[];
+  count: number;
+}
+
+export async function getClientCameraEvents(clientId: string, options?: { limit?: number; offset?: number }): Promise<PaginatedCameraEvents> {
+  let query = supabase
+    .from('camera_events')
+    .select('*', { count: 'exact' })
+    .eq('client_id', clientId)
+    .order('started_at', { ascending: false });
+
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+  if (options?.offset) {
+    query = query.range(options.offset, options.offset + (options.limit || 50) - 1);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error('Error fetching camera events:', error.message);
+    throw error;
+  }
+  return { data: data ?? [], count: count ?? 0 };
+}
+
+// ---------------------------------------------------------------------------
+// Cameras (device configuration)
+// ---------------------------------------------------------------------------
+
+export interface Camera {
+  id: string;
+  gateway_id: string;
+  client_id: string;
+  home_id: string;
+  camera_key: string;
+  name: string;
+  stream_url: string;
+  sub_stream_url: string | null;
+  stream_username: string;
+  stream_password: string;
+  detect_enabled: boolean;
+  record_enabled: boolean;
+  is_enabled: boolean;
+  status: string;
+  status_detail: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getCamerasByGateway(gatewayId: string): Promise<Camera[]> {
+  const { data, error } = await supabase
+    .from('cameras')
+    .select('*')
+    .eq('gateway_id', gatewayId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching cameras:', error.message);
+    throw error;
+  }
+  return data ?? [];
+}
+
+export async function getCamerasByClient(clientId: string): Promise<Camera[]> {
+  const { data, error } = await supabase
+    .from('cameras')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching cameras:', error.message);
+    throw error;
+  }
+  return data ?? [];
+}
+
+export async function updateEventStatus(eventId: string, status: 'unread' | 'read' | 'in-progress' | 'resolved' | 'complete' | 'completed'): Promise<void> {
   const { error } = await supabase
     .from('rf_events')
     .update({ metadata: { status } })
@@ -450,4 +551,118 @@ export async function sendContactMessage(payload: ContactMessagePayload): Promis
     console.error('Error sending contact message:', error.message);
     throw error;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard Counts - efficiently fetch counts for dashboard cards
+// ---------------------------------------------------------------------------
+
+export interface DashboardCounts {
+  events: {
+    unread: number;
+    in_progress: number;
+    completed: number;
+    total: number;
+  };
+  sensors: {
+    total: number;
+    active: number;
+  };
+  cameras: {
+    total: number;
+    active: number;
+  };
+  gateways: {
+    total: number;
+    active: number;
+  };
+}
+
+export async function getDashboardCounts(clientId: string): Promise<DashboardCounts> {
+  // Fetch all counts in parallel
+  const [
+    eventsResult,
+    sensorsResult,
+    camerasResult,
+    gatewaysResult
+  ] = await Promise.all([
+    // Events - select all columns to get metadata and potentially status
+    supabase
+      .from('rf_events')
+      .select('*', { count: 'exact' })
+      .eq('client_id', clientId),
+    // Sensors count
+    supabase
+      .from('rf_sensors')
+      .select('*', { count: 'exact', head: true })
+      .eq('client_id', clientId),
+    // Cameras count
+    supabase
+      .from('cameras')
+      .select('*', { count: 'exact', head: true })
+      .eq('client_id', clientId),
+    // Gateways count - table is 'gateways' not 'rf_gateways'
+    supabase
+      .from('gateways')
+      .select('*', { count: 'exact', head: true })
+      .eq('client_id', clientId)
+  ]);
+
+  // Parse status from metadata (if column exists) or direct status column
+  let eventStatusCounts = {
+    unread: 0,
+    in_progress: 0,
+    completed: 0,
+    total: eventsResult.count || 0,
+  };
+
+  if (eventsResult.data) {
+    eventsResult.data.forEach(event => {
+      // Try metadata JSONB first, then direct status column, then default 'unread'
+      const metadata = (event as any).metadata;
+      const directStatus = (event as any).status;
+      const status = metadata?.status || directStatus || 'unread';
+
+      if (status === 'unread') eventStatusCounts.unread++;
+      else if (status === 'read' || status === 'in-progress') eventStatusCounts.in_progress++;
+      else if (status === 'resolved' || status === 'complete' || status === 'completed') eventStatusCounts.completed++;
+    });
+  }
+
+  return {
+    events: eventStatusCounts,
+    sensors: {
+      total: sensorsResult.count || 0,
+      active: sensorsResult.count || 0,
+    },
+    cameras: {
+      total: camerasResult.count || 0,
+      active: camerasResult.count || 0,
+    },
+    gateways: {
+      total: gatewaysResult.count || 0,
+      active: gatewaysResult.count || 0,
+    },
+  };
+}
+
+// Also export a simpler function for just event counts by status
+export async function getEventCountsByStatus(clientId: string): Promise<{ unread: number; inProgress: number; completed: number; total: number }> {
+  const { data, count } = await supabase
+    .from('rf_events')
+    .select('metadata', { count: 'exact' })
+    .eq('client_id', clientId);
+
+  const counts = { unread: 0, inProgress: 0, completed: 0, total: count || 0 };
+
+  if (data) {
+    data.forEach(event => {
+      const status = event.metadata?.status || 'unread';
+      if (status === 'unread') counts.unread++;
+      else if (status === 'read' || status === 'in-progress') counts.inProgress++;
+      else if (status === 'resolved' || status === 'complete' || status === 'completed') counts.completed++;
+    });
+  }
+
+  return counts;
 }

@@ -2,22 +2,61 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import SideBar from "./SideBar";
 import { useAuth } from "../context/AuthContext";
-import { getClientEvents, updateEventStatus, ClientEvent, PaginatedEvents } from "../lib/api";
-import { Alert } from "../types";
+import {
+  getClientEvents,
+  getClientCameraEvents,
+  updateEventStatus,
+  ClientEvent,
+  CameraEvent,
+} from "../lib/api";
+import { Alert, CameraAlert } from "../types";
 import { supabase } from "../lib/supabaseClient";
 
 const PAGE_SIZE = 25;
 
-const mapEventToAlert = (e: ClientEvent): Alert => ({
-  id: e.id,
-  client_id: e.client_id,
-  sensor_id: e.sensor_id ?? '',
-  code: e.code,
-  message: e.message || 'Sensor triggered an alert',
-  occurred_at: e.occurred_at || new Date().toISOString(),
-  media_url: e.image,
-  status: e.metadata?.status || 'unread',
-});
+const mapEventToAlert = (e: ClientEvent): Alert => {
+  const alert: Alert = {
+    id: e.id,
+    client_id: e.client_id,
+    sensor_id: e.sensor_id ?? '',
+    code: e.code,
+    message: e.message || 'Sensor triggered an alert',
+    occurred_at: e.occurred_at || new Date().toISOString(),
+    media_url: e.image,
+    status: e.metadata?.status || 'unread',
+    source: 'rf' as const,
+  };
+  return alert;
+};
+
+const mapCameraEventToAlert = (e: CameraEvent): Alert => {
+  const alert: CameraAlert = {
+    id: e.id,
+    client_id: e.client_id,
+    gateway_id: e.gateway_id,
+    camera_id: e.camera_id,
+    camera_key: e.camera_key,
+    home_id: e.home_id,
+    label: e.label,
+    zone: e.zone,
+    score: e.score,
+    started_at: e.started_at,
+    ended_at: e.ended_at,
+    thumbnail_ref: e.thumbnail_ref,
+    clip_ref: e.clip_ref,
+    message: `${e.label} detected in ${e.zone} (${Math.round(e.score * 100)}% confidence)`,
+    media_url: e.thumbnail_ref ?? e.clip_ref ?? undefined,
+    occurred_at: e.started_at,
+    status: 'unread' as const,
+    source: 'camera' as const,
+  };
+  return alert;
+};
+
+const mergeAndSortEvents = (rfEvents: Alert[], cameraEvents: Alert[]): Alert[] => {
+  const all = [...rfEvents, ...cameraEvents];
+  return all.sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
+};
 
 const DashView: React.FC = () => {
   const { user, clientData } = useAuth();
@@ -31,6 +70,7 @@ const DashView: React.FC = () => {
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const offsetRef = useRef(0);
+  const cameraOffsetRef = useRef(0);
   const isMountedRef = useRef(true);
 
   const clientId = clientData?.id;
@@ -52,27 +92,39 @@ const DashView: React.FC = () => {
     setUnreadCount(events.filter(e => e.status === 'unread').length);
   }, [events]);
 
-  // Fetch events with pagination
-  const fetchEvents = useCallback(async (offset: number, append = false) => {
+  // Fetch events with pagination (both RF and camera)
+  const fetchEvents = useCallback(async (_offset: number, append = false) => {
     if (!clientId) return;
     try {
       if (!append) setIsLoading(true);
       else setIsLoadingMore(true);
 
-      const result: PaginatedEvents = await getClientEvents(clientId, { limit: PAGE_SIZE, offset });
+      // Fetch both RF and camera events in parallel
+      const [rfResult, cameraResult] = await Promise.all([
+        getClientEvents(clientId, { limit: Math.ceil(PAGE_SIZE / 2), offset: append ? offsetRef.current : 0 }),
+        getClientCameraEvents(clientId, { limit: Math.ceil(PAGE_SIZE / 2), offset: append ? cameraOffsetRef.current : 0 }),
+      ]);
 
       if (!isMountedRef.current) return;
 
-      const mapped = result.data.map(mapEventToAlert);
-      setHasMore(offset + mapped.length < result.count && mapped.length === PAGE_SIZE);
-      setTotalCount(result.count);
+      const rfMapped = rfResult.data.map(mapEventToAlert);
+      const cameraMapped = cameraResult.data.map(mapCameraEventToAlert);
+      const merged = mergeAndSortEvents(rfMapped, cameraMapped);
+
+      // Update total count (sum of both)
+      setTotalCount(rfResult.count + cameraResult.count);
+      const rfHasMore = offsetRef.current + rfMapped.length < rfResult.count;
+      const cameraHasMore = cameraOffsetRef.current + cameraMapped.length < cameraResult.count;
+      setHasMore((rfHasMore || cameraHasMore) && merged.length > 0);
 
       if (append) {
-        setEvents(prev => [...prev, ...mapped]);
-        offsetRef.current += mapped.length;
+        setEvents(prev => [...prev, ...merged]);
+        offsetRef.current += rfMapped.length;
+        cameraOffsetRef.current += cameraMapped.length;
       } else {
-        setEvents(mapped);
-        offsetRef.current = mapped.length;
+        setEvents(merged);
+        offsetRef.current = rfMapped.length;
+        cameraOffsetRef.current = cameraMapped.length;
       }
     } catch (error) {
       console.error("Failed to load events from Supabase:", error);

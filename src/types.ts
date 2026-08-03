@@ -7,15 +7,41 @@ export interface User {
   role?: 'user' | 'admin' | 'super_admin';
 }
 
-export type AlertStatus = 'unread' | 'in-progress' | 'completed' | 'complete';
+export type AlertStatus = 'unread' | 'read' | 'in-progress' | 'resolved' | 'completed' | 'complete';
 
-export interface Alert {
+export type EventSource = 'rf' | 'camera';
+
+export interface BaseAlert {
   id: string;
-  sensor_id: string;
   client_id: string;
+  occurred_at: string;
+  status: AlertStatus;
+  source: EventSource;
+}
+
+export interface RfAlert extends BaseAlert {
+  source: 'rf';
+  sensor_id: string;
   code?: string;
   message: string;
-  occurred_at: string;
   media_url?: string;
-  status: AlertStatus;
 }
+
+export interface CameraAlert extends BaseAlert {
+  source: 'camera';
+  gateway_id: string;
+  camera_id: string | null;
+  camera_key: string;
+  home_id: string;
+  label: string;
+  zone: string;
+  score: number;
+  started_at: string;
+  ended_at: string | null;
+  thumbnail_ref: string | null;
+  clip_ref: string | null;
+  message: string; // Derived from label/zone for display
+  media_url?: string; // thumbnail_ref or clip_ref
+}
+
+export type Alert = RfAlert | CameraAlert;

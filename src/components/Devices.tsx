@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Radio, Wifi, WifiOff, MapPin, Cpu } from 'lucide-react';
+import { Radio, Wifi, WifiOff, MapPin, Cpu, Cctv } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { getCamerasByGateway, Camera } from '../lib/api';
 
 interface Sensor {
   id: string;
@@ -35,6 +36,7 @@ interface Gateway {
   service_health_at: string | null;
   client_id: string;
   sensors?: Sensor[];
+  cameras?: Camera[];
 }
 
 // A node (gateway or sensor) counts as "online" if it's checked in within this window.
@@ -307,6 +309,27 @@ const Devices: React.FC = () => {
 
       console.log('Sensors found:', sensorsData?.length, sensorsData);
 
+      // Fetch cameras for all gateways using the API
+      console.log('Fetching cameras for gateway IDs:', gatewayIds);
+      const camerasByGateway: Record<string, Camera[]> = {};
+      try {
+        // Fetch cameras for each gateway in parallel
+        const cameraPromises = gatewayIds.map(gatewayId =>
+          getCamerasByGateway(gatewayId).then(cameras => ({ gatewayId, cameras }))
+        );
+        const cameraResults = await Promise.all(cameraPromises);
+        cameraResults.forEach(({ gatewayId, cameras }) => {
+          if (cameras && cameras.length > 0) {
+            camerasByGateway[gatewayId] = cameras;
+          }
+        });
+        console.log('Cameras found:', camerasByGateway);
+      } catch (cameraError) {
+        console.error('Error fetching cameras:', cameraError);
+      }
+
+      if (cancelled) return;
+
       // Group sensors by gateway_id
       const sensorsByGateway = (sensorsData || []).reduce((acc, sensor) => {
         if (!acc[sensor.gateway_id]) {
@@ -316,13 +339,14 @@ const Devices: React.FC = () => {
         return acc;
       }, {} as Record<string, Sensor[]>);
 
-      // Combine gateways with their sensors
+      // Combine gateways with their sensors and cameras
       const gatewaysWithSensors = gatewaysData.map(gateway => ({
         ...gateway,
-        sensors: sensorsByGateway[gateway.id] || []
+        sensors: sensorsByGateway[gateway.id] || [],
+        cameras: camerasByGateway[gateway.id] || []
       }));
 
-      console.log('Final gateways with sensors:', gatewaysWithSensors);
+      console.log('Final gateways with sensors and cameras:', gatewaysWithSensors);
 
       setGateways(gatewaysWithSensors as any);
       setUsingDummyData(false);
@@ -433,6 +457,41 @@ const Devices: React.FC = () => {
                           </div>
                         );
                       })}
+                    </div>
+                  )}
+
+                  {/* Connected cameras */}
+                  {gw.cameras && gw.cameras.length > 0 && (
+                    <div className="pt-5 mt-5 border-t border-slate-100 dark:border-slate-850">
+                      <h5 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">
+                        Connected Cameras ({gw.cameras.length})
+                      </h5>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        {gw.cameras.map((camera) => {
+                          const camOnline = camera.is_enabled && camera.status === 'connected';
+                          return (
+                            <div
+                              key={camera.id}
+                              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-900"
+                            >
+                              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                <Cctv className="w-4 h-4 text-blue-500 shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+                                    {camera.name || `Camera ${camera.camera_key}`}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 font-mono">
+                                    {camera.status} • {camOnline ? 'Enabled' : 'Disabled'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className={`w-2 h-2 rounded-full ${camOnline ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
