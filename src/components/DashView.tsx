@@ -59,7 +59,7 @@ const mergeAndSortEvents = (rfEvents: Alert[], cameraEvents: Alert[]): Alert[] =
 };
 
 const DashView: React.FC = () => {
-  const { user, clientData } = useAuth();
+  const { user, clientData, loading: authLoading } = useAuth();
   const [events, setEvents] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -178,13 +178,13 @@ const DashView: React.FC = () => {
     };
   }, [clientId]);
 
-  // Auto-refresh fallback (every 30 seconds)
+  // Auto-refresh fallback (every 60 seconds - less aggressive)
   useEffect(() => {
     const interval = setInterval(() => {
       if (clientId && !isLoading && !isLoadingMore) {
         fetchEvents(0, false);
       }
-    }, 30000);
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [clientId, fetchEvents, isLoading, isLoadingMore]);
@@ -206,12 +206,12 @@ const DashView: React.FC = () => {
     }
   }, []);
 
-  // Handle auth
+  // Handle auth - only navigate to login if auth has fully loaded and no user
   useEffect(() => {
-    if (user === null) return;
+    if (authLoading) return; // Don't act until auth loading is complete
     if (!user) navigate('/login');
     setIsLoading(false);
-  }, [user, navigate]);
+  }, [user, navigate, authLoading]);
 
   if (isLoading) {
     return (
