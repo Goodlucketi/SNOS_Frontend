@@ -16,7 +16,7 @@ const Settings: React.FC = () => {
   // of a separate fetch.
   const [smsEnabled, setSmsEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
-  const [whatsappEnabled, setWhatsappEnabled] = useState(false);
+  const [whatsappEnabled, setWhatsappEnabled] = useState(true);
   const [loadingPrefs, setLoadingPrefs] = useState(true);
 
   const [secondaryContact, setSecondaryContact] = useState("");
