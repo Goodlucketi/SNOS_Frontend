@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Clock, Calendar, ShieldAlert, AlertTriangle, ArrowRight, Server, FileVideo, FileImage } from 'lucide-react';
+import { X, Clock, Calendar, ShieldAlert, ArrowRight, Server, FileVideo, FileImage } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Alert, CameraAlert } from '../types';
 import { formatDateGMT1, formatTimeGMT1 } from '../lib/timezone';
@@ -19,42 +19,11 @@ const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose })
     || (!cameraAlert && alert.media_url?.toLowerCase().endsWith(".mp4"));
   const hasMedia = !!alert.media_url;
 
-  // Parse status badge
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case 'unread':
-        return {
-          bg: 'bg-red-500/15 text-red-400 border-red-500/30',
-          indicator: 'bg-red-500',
-          text: 'CRITICAL UNREAD BREACH',
-          ping: true
-        };
-      case 'in-progress':
-        return {
-          bg: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-          indicator: 'bg-amber-500',
-          text: 'DISPATCH RESPONDING ACTIVE',
-          ping: false
-        };
-      case 'complete':
-      case 'completed':
-        return {
-          bg: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-          indicator: 'bg-emerald-500',
-          text: 'SECTOR SECURED / RESOLVED',
-          ping: false
-        };
-      default:
-        return {
-          bg: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
-          indicator: 'bg-slate-500',
-          text: 'UNKNOWN STATUS',
-          ping: false
-        };
-    }
-  };
-
-  const statusConfig = getStatusConfig(alert.status);
+  // Source type label
+  const SourceIcon = cameraAlert ? FileVideo : ShieldAlert;
+  const sourceLabel = cameraAlert ? 'CAMERA EVENT' : 'RF EVENT';
+  const sourceColor = cameraAlert ? 'text-blue-400' : 'text-blue-500';
+  const sourceBg = cameraAlert ? 'bg-blue-500/10 border-blue-500/20' : 'bg-blue-500/10 border-blue-500/20';
 
   return (
     <div className="fixed inset-0 z-55 flex items-center justify-center p-4 md:p-6 bg-slate-950/85 backdrop-blur-xl">
@@ -121,8 +90,8 @@ const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose })
           <div className="mt-4 p-5 bg-slate-900/80 backdrop-blur-md border border-slate-850 rounded-2xl shadow-xl space-y-4 text-white">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20">
-                  <ShieldAlert className="w-4.5 h-4.5" />
+                <div className={`w-8 h-8 rounded-lg ${sourceBg} flex items-center justify-center ${sourceColor} border`}>
+                  <SourceIcon className="w-4.5 h-4.5" />
                 </div>
                 <div>
                   <span className="text-[9px] font-mono font-bold tracking-widest text-slate-550 uppercase block">Active Alert Segment</span>
@@ -132,17 +101,11 @@ const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose })
                 </div>
               </div>
 
-              {/* Status Indicator Bar */}
+              {/* Source Type Indicator */}
               <div className="flex items-center gap-2.5">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold tracking-wider ${statusConfig.bg}`}>
-                  {statusConfig.ping && (
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
-                    </span>
-                  )}
-                  {!statusConfig.ping && <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.indicator}`} />}
-                  {statusConfig.text}
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-bold tracking-wider bg-slate-950/60 border-slate-800 text-slate-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  {sourceLabel}
                 </span>
 
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-950/60 border border-slate-800 text-slate-400 text-[11px] font-mono font-bold">
@@ -184,8 +147,8 @@ const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose })
         >
           {/* Header */}
           <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-4">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
-              <AlertTriangle className="w-5 h-5" />
+            <div className={`w-10 h-10 rounded-xl ${sourceBg} flex items-center justify-center ${sourceColor} border`}>
+              <SourceIcon className="w-5 h-5" />
             </div>
             <div>
               <span className="text-[10px] font-mono font-bold tracking-widest text-slate-400 dark:text-slate-500 uppercase">System Logs Logged</span>
@@ -195,17 +158,11 @@ const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose })
             </div>
           </div>
 
-          {/* Badges */}
+          {/* Source Badge */}
           <div className="flex flex-wrap items-center gap-2.5">
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold tracking-wider ${statusConfig.bg}`}>
-              {statusConfig.ping && (
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
-                </span>
-              )}
-              {!statusConfig.ping && <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.indicator}`} />}
-              {statusConfig.text}
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-bold tracking-wider bg-slate-100 dark:bg-slate-850 border-slate-200/50 dark:border-slate-800 text-slate-600 dark:text-slate-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              {sourceLabel}
             </span>
 
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-850 border border-slate-200/50 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-xs font-mono font-bold">

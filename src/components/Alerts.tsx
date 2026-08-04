@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Search, ShieldAlert, Eye, Clock, Calendar, ChevronDown, RefreshCw } from 'lucide-react';
+import { Search, ShieldAlert, Eye, Clock, Calendar, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Alert, CameraAlert } from '../types';
 import AlertDetailsModal from './AlertDetailsModal';
@@ -12,7 +12,6 @@ interface OutletContextType {
   hasMore: boolean;
   loadMore: () => void;
   totalCount: number;
-  onStatusUpdate: (eventId: string, status: Alert['status']) => void;
 }
 
 const Alerts: React.FC = () => {
@@ -22,13 +21,10 @@ const Alerts: React.FC = () => {
     hasMore,
     loadMore,
     totalCount,
-    onStatusUpdate,
   } = useOutletContext<OutletContextType>();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<'all' | 'unread' | 'in-progress' | 'complete'>('all');
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState<string | null>(null);
 
   const observerTargetRef = useRef<HTMLDivElement>(null);
 
@@ -59,35 +55,14 @@ const Alerts: React.FC = () => {
     setSearchQuery(e.target.value.toLowerCase());
   };
 
-  // Filter events by search query AND status tab
+  // Filter events by search query only (no status filter)
   const filteredEvents = events
     .filter(event => {
       const matchesSearch = event.message.toLowerCase().includes(searchQuery) ||
         (event.source === 'rf' && event.code?.toLowerCase().includes(searchQuery));
-      const matchesStatus = statusFilter === 'all' || event.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      return matchesSearch;
     })
     .sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime());
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'unread':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-xs font-bold"><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" /> UNREAD</span>;
-      case 'in-progress':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-bold">RESPONDING</span>;
-      case 'complete':
-      case 'completed':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold">RESOLVED</span>;
-      default:
-        return null;
-    }
-  };
-
-  const handleStatusChange = (eventId: string, newStatus: Alert['status'], e: React.MouseEvent) => {
-    e.stopPropagation();
-    setStatusDropdownOpen(null);
-    onStatusUpdate(eventId, newStatus);
-  };
 
   return (
     <div className="space-y-6 font-sans animate-fade-in">
@@ -109,19 +84,6 @@ const Alerts: React.FC = () => {
             value={searchQuery}
             onChange={handleSearch}
           />
-        </div>
-
-        {/* Status Tab Filters */}
-        <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200/40 dark:border-slate-800/40 self-start sm:self-auto">
-          {(['all', 'unread', 'in-progress', 'complete'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setStatusFilter(tab)}
-              className={`py-2 px-3.5 rounded-lg text-xs font-bold capitalize transition-all ${statusFilter === tab ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-            >
-              {tab === 'complete' ? 'resolved' : tab}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -158,7 +120,7 @@ const Alerts: React.FC = () => {
                   className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-850 rounded-2xl p-5 shadow-sm flex flex-col gap-4 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-800 transition-all cursor-pointer"
                   onClick={() => setSelectedAlert(event)}
                 >
-                  {/* Header with sensor code and status */}
+                  {/* Header */}
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="flex items-center gap-3">
                       {/* {event.code && (
@@ -167,37 +129,6 @@ const Alerts: React.FC = () => {
                           {event.code}
                         </span>
                       )} */}
-                      {getStatusBadge(event.status)}
-                    </div>
-
-                    {/* Status dropdown */}
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setStatusDropdownOpen(statusDropdownOpen === event.id ? null : event.id);
-                        }}
-                        className="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        aria-label="Change status"
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-
-                      {statusDropdownOpen === event.id && (
-                        <div className="absolute right-0 top-full mt-1.5 w-36 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg py-1 z-20 animate-fade-in">
-                          {(['unread', 'in-progress', 'complete'] as const).map((status) => (
-                            <button
-                              key={status}
-                              onClick={(e) => handleStatusChange(event.id, status, e)}
-                              className={`w-full px-3 py-2 text-left text-sm transition-colors ${event.status === status ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-                            >
-                              {status === 'unread' && 'Mark Unread'}
-                              {status === 'in-progress' && 'Responding'}
-                              {status === 'complete' && 'Mark Resolved'}
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -250,26 +181,26 @@ const Alerts: React.FC = () => {
                 </motion.div>
               );
             })}
-
-            {/* Infinite scroll trigger */}
-            {hasMore && (
-              <div ref={observerTargetRef} className="col-span-full flex justify-center py-4">
-                {isLoadingMore ? (
-                  <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Loading more signals...
-                  </div>
-                ) : (
-                  <button
-                    onClick={loadMore}
-                    className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium"
-                  >
-                    Load more
-                  </button>
-                )}
-              </div>
-            )}
           </div>
+
+          {/* Infinite scroll trigger */}
+          {hasMore && (
+            <div ref={observerTargetRef} className="col-span-full flex justify-center py-4">
+              {isLoadingMore ? (
+                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Loading more signals...
+                </div>
+              ) : (
+                <button
+                  onClick={loadMore}
+                  className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium"
+                >
+                  Load more
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Total count indicator */}
           <div className="text-center py-2 text-xs text-slate-500 dark:text-slate-400">
