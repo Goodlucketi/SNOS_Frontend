@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, Phone, Save, Lock, Plus, Trash2, UserPlus } from 'lucide-react';
+import { Bell, Phone, Save, Lock, Plus, Trash2, UserPlus, Mail, MessageCircle, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { updateClientSettings, AlertContact } from '../lib/api';
 import Button from './Button';
@@ -24,9 +25,14 @@ const Settings: React.FC = () => {
   // Additional alert contacts (max 5)
   const [contacts, setContacts] = useState<AlertContact[]>([]);
 
+  // Existing contact arrays from database (direct columns)
+  const [existingPhones, setExistingPhones] = useState<string[]>([]);
+  const [existingEmails, setExistingEmails] = useState<string[]>([]);
+  const [existingWhatsapps, setExistingWhatsapps] = useState<string[]>([]);
+
   const addContact = () => {
     if (contacts.length >= 5) return;
-    setContacts([...contacts, { id: crypto.randomUUID(), name: '', phone: '', email: '', whatsapp: '' }]);
+    setContacts([...contacts, { id: crypto.randomUUID(), phone: '', email: '', whatsapp: '' }]);
   };
 
   const removeContact = (id: string) => {
@@ -35,6 +41,49 @@ const Settings: React.FC = () => {
 
   const updateContact = (id: string, field: keyof Omit<AlertContact, 'id'>, value: string) => {
     setContacts(contacts.map(c => c.id === id ? { ...c, [field]: value } : c));
+  };
+
+  // Functions to remove existing database contacts
+  const removeExistingPhone = async (phone: string) => {
+    const updatedPhones = existingPhones.filter(p => p !== phone);
+    setExistingPhones(updatedPhones);
+    if (clientData?.id) {
+      try {
+        await supabase.from('clients').update({ phones: updatedPhones }).eq('id', clientData.id);
+      } catch (err) {
+        console.error('Failed to remove phone:', err);
+        setExistingPhones(existingPhones); // revert on error
+        toast.error('Failed to remove phone number');
+      }
+    }
+  };
+
+  const removeExistingEmail = async (email: string) => {
+    const updatedEmails = existingEmails.filter(e => e !== email);
+    setExistingEmails(updatedEmails);
+    if (clientData?.id) {
+      try {
+        await supabase.from('clients').update({ emails: updatedEmails }).eq('id', clientData.id);
+      } catch (err) {
+        console.error('Failed to remove email:', err);
+        setExistingEmails(existingEmails); // revert on error
+        toast.error('Failed to remove email address');
+      }
+    }
+  };
+
+  const removeExistingWhatsapp = async (whatsapp: string) => {
+    const updatedWhatsapps = existingWhatsapps.filter(w => w !== whatsapp);
+    setExistingWhatsapps(updatedWhatsapps);
+    if (clientData?.id) {
+      try {
+        await supabase.from('clients').update({ whatsapps: updatedWhatsapps }).eq('id', clientData.id);
+      } catch (err) {
+        console.error('Failed to remove WhatsApp:', err);
+        setExistingWhatsapps(existingWhatsapps); // revert on error
+        toast.error('Failed to remove WhatsApp number');
+      }
+    }
   };
 
   const [saving, setSaving] = useState(false);
@@ -62,6 +111,11 @@ const Settings: React.FC = () => {
       }
 
       setContacts(metadata.alert_contacts || []);
+
+      // Populate existing contact arrays from direct database columns
+      setExistingPhones(clientData.phones || []);
+      setExistingEmails(clientData.emails || []);
+      setExistingWhatsapps(clientData.whatsapps || []);
     }
     setLoadingPrefs(false);
   }, [clientData]);
@@ -184,7 +238,7 @@ const Settings: React.FC = () => {
         </div>
 
         {/* Secondary Contact Dispatch */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-850 rounded-2xl p-6 space-y-6 shadow-sm">
+        {/* <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-850 rounded-2xl p-6 space-y-6 shadow-sm">
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-855">
             <Phone className="w-4 h-4 text-blue-500" />
             Designated Rapid Response Dispatch
@@ -211,7 +265,7 @@ const Settings: React.FC = () => {
               />
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Additional Alert Contacts */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-850 rounded-2xl p-6 space-y-6 shadow-sm">
@@ -238,9 +292,84 @@ const Settings: React.FC = () => {
 
           {contacts.length === 0 && (
             <div className="text-center py-8 text-slate-400 dark:text-slate-500 text-sm border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
-              Click the <span className="font-semibold text-blue-500">+ Add Contact</span> button above to add emergency alert recipients.
+              Click the <span className="font-semibold text-blue-500">+ Add Contact</span> button above to add emergency alert recipients (Phone, Email, WhatsApp).
             </div>
           )}
+
+          {/* Existing Database Contacts Display */}
+          <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-850">
+            <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-2">
+              <Phone className="w-3.5 h-3.5 text-blue-500" />
+              Current Database Contacts
+            </h4>
+
+            {(existingPhones.length > 0 || existingEmails.length > 0 || existingWhatsapps.length > 0) ? (
+              <div className="space-y-3">
+                {existingPhones.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">SMS Numbers:</span>
+                    {existingPhones.map((phone, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 rounded-full text-xs font-mono border border-blue-100 dark:border-blue-500/20">
+                        <Phone className="w-3 h-3" />
+                        {phone}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeExistingPhone(phone); }}
+                          className="p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-500 hover:text-red-500 transition-colors"
+                          title="Remove phone number"
+                          aria-label="Remove phone number"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {existingEmails.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Email Addresses:</span>
+                    {existingEmails.map((email, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-mono border border-emerald-100 dark:border-emerald-500/20">
+                        <Mail className="w-3 h-3" />
+                        {email}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeExistingEmail(email); }}
+                          className="p-0.5 rounded hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-500 hover:text-red-500 transition-colors"
+                          title="Remove email address"
+                          aria-label="Remove email address"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {existingWhatsapps.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">WhatsApp Numbers:</span>
+                    {existingWhatsapps.map((whatsapp, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 rounded-full text-xs font-mono border border-green-100 dark:border-green-500/20">
+                        <MessageCircle className="w-3 h-3" />
+                        {whatsapp}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeExistingWhatsapp(whatsapp); }}
+                          className="p-0.5 rounded hover:bg-green-100 dark:hover:bg-green-500/20 text-green-500 hover:text-red-500 transition-colors"
+                          title="Remove WhatsApp number"
+                          aria-label="Remove WhatsApp number"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 dark:text-slate-400 italic">No existing contacts in database yet.</p>
+            )}
+          </div>
 
           <div className="space-y-4">
             {contacts.map((contact, index) => (
@@ -262,15 +391,15 @@ const Settings: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Full Name</label>
+                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Phone (SMS)</label>
                     <input
                       type="text"
                       className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                      value={contact.name}
-                      onChange={(e) => updateContact(contact.id, 'name', e.target.value)}
-                      placeholder="Enter full name"
+                      value={contact.phone}
+                      onChange={(e) => updateContact(contact.id, 'phone', e.target.value)}
+                      placeholder="+234 XXX-XXX-XXXX"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -281,16 +410,6 @@ const Settings: React.FC = () => {
                       onChange={(e) => updateContact(contact.id, 'email', e.target.value)}
                       className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       placeholder="email@example.com"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Phone (SMS)</label>
-                    <input
-                      type="text"
-                      value={contact.phone}
-                      onChange={(e) => updateContact(contact.id, 'phone', e.target.value)}
-                      className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                      placeholder="+234 XXX-XXX-XXXX"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -311,7 +430,7 @@ const Settings: React.FC = () => {
 
         {/* Submit Save */}
         <Button
-          text="Sync Gateway Parameters"
+          text="Update Preferences"
           type="submit"
           variant="primary"
           size="md"

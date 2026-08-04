@@ -40,8 +40,10 @@ export interface CameraAlert extends BaseAlert {
   ended_at: string | null;
   thumbnail_ref: string | null;
   clip_ref: string | null;
+  event_id: string; // Camera event ID for fetching media from boscotec.org
   message: string; // Derived from label/zone for display
-  media_url?: string; // thumbnail_ref or clip_ref
+  media_url?: string; // thumbnail or clip URL from boscotec.org
+  media_type?: 'image' | 'video'; // Type of media for proper rendering
 }
 
 export type Alert = RfAlert | CameraAlert;

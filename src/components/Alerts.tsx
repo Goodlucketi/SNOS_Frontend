@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Search, ShieldAlert, Play, Eye, FileVideo, Clock, Calendar, AlertTriangle, ChevronDown, RefreshCw } from 'lucide-react';
+import { Search, ShieldAlert, Eye, Clock, Calendar, ChevronDown, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Alert } from '../types';
+import { Alert, CameraAlert } from '../types';
 import AlertDetailsModal from './AlertDetailsModal';
+import { formatDateGMT1, formatTimeGMT1 } from '../lib/timezone';
 
 interface OutletContextType {
   events: Alert[];
@@ -30,6 +31,9 @@ const Alerts: React.FC = () => {
   const [statusDropdownOpen, setStatusDropdownOpen] = useState<string | null>(null);
 
   const observerTargetRef = useRef<HTMLDivElement>(null);
+
+  // Type guard for CameraAlert
+  const isCameraAlert = (event: Alert): event is CameraAlert => event.source === 'camera';
 
   // Infinite scroll observer
   useEffect(() => {
@@ -140,7 +144,10 @@ const Alerts: React.FC = () => {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
             {filteredEvents.map((event) => {
-              const isVideo = event.media_url?.toLowerCase().endsWith(".mp4");
+              // Use media_type field if available (only on CameraAlert), otherwise fall back to URL extension check
+              const cameraEvent = isCameraAlert(event);
+              const isVideo = cameraEvent && event.media_type === 'video'
+                || (!cameraEvent && event.media_url?.toLowerCase().endsWith(".mp4"));
               const hasMedia = !!event.media_url;
 
               return (
@@ -228,11 +235,11 @@ const Alerts: React.FC = () => {
                     <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-500 dark:text-slate-300">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5" />
-                        {event.occurred_at.split('T')[0]}
+                        {formatDateGMT1(event.occurred_at)}
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
-                        {event.occurred_at.split('T')[1]?.split('.')[0]}
+                        {formatTimeGMT1(event.occurred_at)}
                       </span>
                     </div>
 

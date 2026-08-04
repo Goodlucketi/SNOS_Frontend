@@ -13,6 +13,7 @@ import { Alert, CameraAlert } from "../types";
 import { supabase } from "../lib/supabaseClient";
 
 const PAGE_SIZE = 25;
+const BOSCOTEC_BASE_URL = 'https://boscotec.org/api/events';
 
 const mapEventToAlert = (e: ClientEvent): Alert => {
   const alert: Alert = {
@@ -29,7 +30,16 @@ const mapEventToAlert = (e: ClientEvent): Alert => {
   return alert;
 };
 
-const mapCameraEventToAlert = (e: CameraEvent): Alert => {
+const mapCameraEventToAlert = async (e: CameraEvent): Promise<Alert> => {
+  const eventId = e.id;
+  const thumbnailUrl = `${BOSCOTEC_BASE_URL}/${eventId}/thumbnail.jpg`;
+  const clipUrl = `${BOSCOTEC_BASE_URL}/${eventId}/clip.mp4`;
+
+  // Determine if we have a clip (video) or just thumbnail (image)
+  const hasClip = !!e.clip_ref;
+  const mediaType = hasClip ? 'video' as const : 'image' as const;
+  const mediaUrl = hasClip ? clipUrl : thumbnailUrl;
+
   const alert: CameraAlert = {
     id: e.id,
     client_id: e.client_id,
@@ -44,8 +54,10 @@ const mapCameraEventToAlert = (e: CameraEvent): Alert => {
     ended_at: e.ended_at,
     thumbnail_ref: e.thumbnail_ref,
     clip_ref: e.clip_ref,
+    event_id: eventId,
     message: `${e.label} detected in ${e.zone} (${Math.round(e.score * 100)}% confidence)`,
-    media_url: e.thumbnail_ref ?? e.clip_ref ?? undefined,
+    media_url: mediaUrl,
+    media_type: mediaType,
     occurred_at: e.started_at,
     status: 'unread' as const,
     source: 'camera' as const,
@@ -108,7 +120,7 @@ const DashView: React.FC = () => {
       if (!isMountedRef.current) return;
 
       const rfMapped = rfResult.data.map(mapEventToAlert);
-      const cameraMapped = cameraResult.data.map(mapCameraEventToAlert);
+      const cameraMapped = await Promise.all(cameraResult.data.map(mapCameraEventToAlert));
       const merged = mergeAndSortEvents(rfMapped, cameraMapped);
 
       // Update total count (sum of both)

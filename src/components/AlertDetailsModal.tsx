@@ -1,7 +1,8 @@
 import React from 'react';
 import { X, Clock, Calendar, ShieldAlert, AlertTriangle, ArrowRight, Server, FileVideo, FileImage } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Alert } from '../types';
+import { Alert, CameraAlert } from '../types';
+import { formatDateGMT1, formatTimeGMT1 } from '../lib/timezone';
 
 interface AlertDetailsModalProps {
   alert: Alert;
@@ -9,8 +10,13 @@ interface AlertDetailsModalProps {
 }
 
 const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose }) => {
-  const isVideo = alert.media_url?.toLowerCase().endsWith(".mp4");
-  const isImage = alert.media_url?.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/);
+  // Type guard for CameraAlert
+  const isCameraAlert = (event: Alert): event is CameraAlert => event.source === 'camera';
+  const cameraAlert = isCameraAlert(alert);
+
+  // Use media_type field if available (only on CameraAlert), otherwise fall back to URL extension check
+  const isVideo = cameraAlert && alert.media_type === 'video'
+    || (!cameraAlert && alert.media_url?.toLowerCase().endsWith(".mp4"));
   const hasMedia = !!alert.media_url;
 
   // Parse status badge
@@ -158,11 +164,11 @@ const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose })
             <div className="flex items-center justify-between text-xs text-slate-400 border-t border-slate-850 pt-3">
               <div className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-slate-500" />
-                <span>Detection: <strong className="text-slate-200 font-semibold">{alert.occurred_at.split('T')[0]}</strong></span>
+                <span>Detection: <strong className="text-slate-200 font-semibold">{formatDateGMT1(alert.occurred_at)}</strong></span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-slate-500" />
-                <span>System Time: <strong className="text-slate-200 font-mono font-semibold">{alert.occurred_at.split('T')[1]?.split('.')[0] || alert.occurred_at} (UTC)</strong></span>
+                <span>System Time: <strong className="text-slate-200 font-mono font-semibold">{formatTimeGMT1(alert.occurred_at)} (GMT+1)</strong></span>
               </div>
             </div>
           </div>
@@ -222,14 +228,14 @@ const AlertDetailsModal: React.FC<AlertDetailsModalProps> = ({ alert, onClose })
               <span className="text-[10px] font-mono font-semibold text-slate-400 dark:text-slate-500 uppercase">Detection Date</span>
               <div className="flex items-center gap-1.5 text-sm font-bold text-slate-750 dark:text-slate-200">
                 <Calendar className="w-4 h-4 text-blue-500" />
-                <span>{alert.occurred_at.split('T')[0]}</span>
+                <span>{formatDateGMT1(alert.occurred_at)}</span>
               </div>
             </div>
             <div className="space-y-1">
               <span className="text-[10px] font-mono font-semibold text-slate-400 dark:text-slate-500 uppercase">Detection Time</span>
               <div className="flex items-center gap-1.5 text-sm font-mono font-bold text-slate-750 dark:text-slate-200">
                 <Clock className="w-4 h-4 text-blue-500" />
-                <span>{alert.occurred_at.split('T')[1]?.split('.')[0] || alert.occurred_at.split('T')[1]} (UTC)</span>
+                <span>{formatTimeGMT1(alert.occurred_at)} (GMT+1)</span>
               </div>
             </div>
           </div>

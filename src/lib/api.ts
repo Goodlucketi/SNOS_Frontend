@@ -184,7 +184,6 @@ export interface NotificationPreferences {
 
 export interface AlertContact {
   id: string;
-  name: string;
   phone: string;
   email: string;
   whatsapp: string;
@@ -240,8 +239,25 @@ export interface ClientSettings {
 }
 
 export async function updateClientSettings(id: string, settings: ClientSettings): Promise<void> {
-  // Build direct column updates
+  // First, fetch existing data to merge with new values
+  const { data: existingClient, error: fetchError } = await supabase
+    .from('clients')
+    .select('phones, emails, whatsapps')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error('Error fetching existing client data:', fetchError.message);
+    throw fetchError;
+  }
+
+  // Build direct column updates with merging
   const directUpdates: Record<string, any> = {};
+
+  // Get existing arrays (they are text[] in DB, so may be arrays or null)
+  const existingPhones = existingClient?.phones || [];
+  const existingEmails = existingClient?.emails || [];
+  const existingWhatsapps = existingClient?.whatsapps || [];
 
   if (settings.notification_preferences) {
     directUpdates.alert_preference = settings.notification_preferences;
@@ -249,25 +265,26 @@ export async function updateClientSettings(id: string, settings: ClientSettings)
 
   if (settings.alert_contacts && settings.alert_contacts.length > 0) {
     // Collect unique phones, emails, whatsapps from alert contacts
-    const phones = [...new Set(settings.alert_contacts.map(c => c.phone).filter(Boolean))];
-    const emails = [...new Set(settings.alert_contacts.map(c => c.email).filter(Boolean))];
-    const whatsapps = [...new Set(settings.alert_contacts.map(c => c.whatsapp).filter(Boolean))];
+    const newPhones = [...new Set(settings.alert_contacts.map(c => c.phone).filter(Boolean))];
+    const newEmails = [...new Set(settings.alert_contacts.map(c => c.email).filter(Boolean))];
+    const newWhatsapps = [...new Set(settings.alert_contacts.map(c => c.whatsapp).filter(Boolean))];
 
-    if (phones.length > 0) directUpdates.phones = phones;
-    if (emails.length > 0) directUpdates.emails = emails;
-    if (whatsapps.length > 0) directUpdates.whatsapps = whatsapps;
+    // Merge with existing (avoid duplicates)
+    if (newPhones.length > 0) directUpdates.phones = [...new Set([...existingPhones, ...newPhones])];
+    if (newEmails.length > 0) directUpdates.emails = [...new Set([...existingEmails, ...newEmails])];
+    if (newWhatsapps.length > 0) directUpdates.whatsapps = [...new Set([...existingWhatsapps, ...newWhatsapps])];
   }
 
   if (settings.secondary_contacts && settings.secondary_contacts.length > 0) {
     const secondary = settings.secondary_contacts[0];
     if (secondary.phone) {
-      directUpdates.phones = [...new Set([...(directUpdates.phones || []), secondary.phone])];
+      directUpdates.phones = [...new Set([...(directUpdates.phones || existingPhones), secondary.phone])];
     }
   }
 
   if (settings.primary_whatsapp) {
     directUpdates.primary_whatsapp = settings.primary_whatsapp;
-    directUpdates.whatsapps = [...new Set([...(directUpdates.whatsapps || []), settings.primary_whatsapp])];
+    directUpdates.whatsapps = [...new Set([...(directUpdates.whatsapps || existingWhatsapps), settings.primary_whatsapp])];
   }
 
   // Update direct columns if any

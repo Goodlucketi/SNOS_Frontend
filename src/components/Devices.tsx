@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Radio, Wifi, WifiOff, MapPin, Cpu, Cctv } from 'lucide-react';
+import { Wifi, WifiOff, MapPin, Cpu, Cctv } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { getCamerasByGateway, Camera } from '../lib/api';
+import { toast } from 'react-toastify';
+import { formatDateGMT1, formatTimeGMT1 } from '../lib/timezone';
 
 interface Sensor {
   id: string;
@@ -48,199 +50,82 @@ const isOnline = (lastSeen?: string) => {
   return diffMs < ONLINE_THRESHOLD_MINUTES * 60 * 1000;
 };
 
-const timeAgo = (timestamp?: string) => {
-  if (!timestamp) return 'Never';
-  const diffMs = Date.now() - new Date(timestamp).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-};
-
-// Dummy gateway & sensor data shown when no real gateways are registered.
-// Timestamps are pinned relative to Date.now() so "Just now" / "Xm ago" stay accurate.
-const NOW = Date.now();
-const MIN = 60_000;
-
-function minutesAgo(n: number) {
-  return new Date(NOW - n * MIN).toISOString();
-}
-
-const DUMMY_GATEWAYS: Gateway[] = [
-  {
-    id: "GW-8F3A-001",
-    client_id: "demo",
-    home_id: null,
-    name: "Perimeter Fence — Sector A",
-    mesh_address: "0x8f3a001",
-    status: "online",
-    created_at: "2025-11-15T10:30:00Z",
-    cert_fingerprint: null,
-    enrolled_at: "2025-11-15T10:30:00Z",
-    last_seen_at: minutesAgo(1),
-    agent_version: "1.2.3",
-    service_health: "healthy",
-    service_health_at: minutesAgo(1),
-    sensors: [
-      {
-        id: "SENS-001",
-        gateway_id: "GW-8F3A-001",
-        client_id: "demo",
-        home_id: null,
-        automation_id: null,
-        rf_code: "VIB-001",
-        message: "Vibration / Seismic",
-        trigger_topic: null,
-        is_sensing: true,
-        status: "active",
-        created_at: "2025-11-15T10:30:00Z",
-        updated_at: "2025-11-15T10:30:00Z",
-        timestamptz: minutesAgo(1),
-        last_triggered_at: minutesAgo(1)
-      },
-      {
-        id: "SENS-002",
-        gateway_id: "GW-8F3A-001",
-        client_id: "demo",
-        home_id: null,
-        automation_id: null,
-        rf_code: "PIR-001",
-        message: "PIR / Motion",
-        trigger_topic: null,
-        is_sensing: true,
-        status: "active",
-        created_at: "2025-11-15T10:30:00Z",
-        updated_at: "2025-11-15T10:30:00Z",
-        timestamptz: minutesAgo(3),
-        last_triggered_at: minutesAgo(3)
-      },
-      {
-        id: "SENS-003",
-        gateway_id: "GW-8F3A-001",
-        client_id: "demo",
-        home_id: null,
-        automation_id: null,
-        rf_code: "ACO-001",
-        message: "Acoustic / Glass-break",
-        trigger_topic: null,
-        is_sensing: false,
-        status: "inactive",
-        created_at: "2025-11-15T10:30:00Z",
-        updated_at: "2025-11-15T10:30:00Z",
-        timestamptz: minutesAgo(48),
-        last_triggered_at: minutesAgo(48)
-      },
-    ],
-  },
-  {
-    id: "GW-B72D-2",
-    client_id: "demo-client",
-    home_id: null,
-    name: "Indoor Server Room",
-    mesh_address: "0xb72d002",
-    status: "online",
-    created_at: "2025-09-01T08:15:00Z",
-    cert_fingerprint: null,
-    enrolled_at: "2025-09-01T08:15:00Z",
-    last_seen_at: minutesAgo(0.3),
-    agent_version: "1.2.3",
-    service_health: "healthy",
-    service_health_at: minutesAgo(0.3),
-    sensors: [
-      {
-        id: "SENS-004",
-        gateway_id: "GW-B72D-2",
-        client_id: "demo-client",
-        home_id: null,
-        automation_id: null,
-        rf_code: "TMP-001",
-        message: "Temperature",
-        trigger_topic: null,
-        is_sensing: true,
-        status: "active",
-        created_at: "2025-09-01T08:15:00Z",
-        updated_at: "2025-09-01T08:15:00Z",
-        timestamptz: minutesAgo(0.5),
-        last_triggered_at: minutesAgo(0.5)
-      },
-      {
-        id: "SENS-005",
-        gateway_id: "GW-B72D-2",
-        client_id: "demo-client",
-        home_id: null,
-        automation_id: null,
-        rf_code: "SMK-001",
-        message: "Smoke / CO",
-        trigger_topic: null,
-        is_sensing: true,
-        status: "active",
-        created_at: "2025-09-01T08:15:00Z",
-        updated_at: "2025-09-01T08:15:00Z",
-        timestamptz: minutesAgo(1),
-        last_triggered_at: minutesAgo(1)
-      },
-      {
-        id: "SENS-006",
-        gateway_id: "GW-B72D-2",
-        client_id: "demo-client",
-        home_id: null,
-        automation_id: null,
-        rf_code: "FLD-001",
-        message: "Flood / Leak",
-        trigger_topic: null,
-        is_sensing: false,
-        status: "inactive",
-        created_at: "2025-09-01T08:15:00Z",
-        updated_at: "2025-09-01T08:15:00Z",
-        timestamptz: minutesAgo(120),
-        last_triggered_at: minutesAgo(120)
-      },
-      {
-        id: "SENS-007",
-        gateway_id: "GW-B72D-2",
-        client_id: "demo-client",
-        home_id: null,
-        automation_id: null,
-        rf_code: "DRS-001",
-        message: "Door / Reed Switch",
-        trigger_topic: null,
-        is_sensing: true,
-        status: "active",
-        created_at: "2025-09-01T08:15:00Z",
-        updated_at: "2025-09-01T08:15:00Z",
-        timestamptz: minutesAgo(0.2),
-        last_triggered_at: minutesAgo(0.2)
-      },
-    ],
-  },
-];
-
 const Devices: React.FC = () => {
   const { clientData } = useAuth();
   const [gateways, setGateways] = useState<Gateway[]>([]);
   const [loading, setLoading] = useState(true);
-  const [usingDummyData, setUsingDummyData] = useState(false);
 
   // Track sensing toggle state per sensor (keyed by sensor.id).
   // Initialised from the gateway/sensor data once it loads.
   const [sensingStates, setSensingStates] = useState<Record<string, boolean>>({});
 
-  const toggleSensing = (sensorId: string) => {
-    setSensingStates(prev => ({ ...prev, [sensorId]: !prev[sensorId] }));
-    // TODO: push to backend e.g. POST /api/sensors/toggle.php
+  // Track enabled toggle state per camera (keyed by camera.id).
+  const [cameraEnabledStates, setCameraEnabledStates] = useState<Record<string, boolean>>({});
+
+  const toggleSensing = async (sensorId: string, currentState: boolean) => {
+    const newState = !currentState;
+    setSensingStates(prev => ({ ...prev, [sensorId]: newState }));
+
+    try {
+      const { error } = await supabase
+        .from('rf_sensors')
+        .update({ is_sensing: newState })
+        .eq('id', sensorId);
+
+      if (error) {
+        console.error('Error toggling sensor:', error);
+        // Revert on error
+        setSensingStates(prev => ({ ...prev, [sensorId]: currentState }));
+        toast.error('Failed to update sensor');
+      } else {
+        toast.success(newState ? 'Sensing enabled' : 'Sensing disabled');
+      }
+    } catch (err) {
+      console.error('Error toggling sensor:', err);
+      setSensingStates(prev => ({ ...prev, [sensorId]: currentState }));
+      toast.error('Failed to update sensor');
+    }
+  };
+
+  const toggleCameraEnabled = async (cameraId: string, currentState: boolean) => {
+    const newState = !currentState;
+    setCameraEnabledStates(prev => ({ ...prev, [cameraId]: newState }));
+
+    try {
+      const { error } = await supabase
+        .from('cameras')
+        .update({ is_enabled: newState })
+        .eq('id', cameraId);
+
+      if (error) {
+        console.error('Error toggling camera:', error);
+        // Revert on error
+        setCameraEnabledStates(prev => ({ ...prev, [cameraId]: currentState }));
+        toast.error('Failed to update camera');
+      } else {
+        toast.success(newState ? 'Camera enabled' : 'Camera disabled');
+      }
+    } catch (err) {
+      console.error('Error toggling camera:', err);
+      setCameraEnabledStates(prev => ({ ...prev, [cameraId]: currentState }));
+      toast.error('Failed to update camera');
+    }
   };
 
   // Seed sensingStates whenever gateways change (real or dummy).
   useEffect(() => {
     const states: Record<string, boolean> = {};
+    const camStates: Record<string, boolean> = {};
     gateways.forEach(gw => {
       gw.sensors?.forEach(s => {
         states[s.id] = s.is_sensing ?? true;
       });
+      gw.cameras?.forEach(c => {
+        camStates[c.id] = c.is_enabled ?? true;
+      });
     });
     setSensingStates(states);
+    setCameraEnabledStates(camStates);
   }, [gateways]);
 
   useEffect(() => {
@@ -255,8 +140,7 @@ const Devices: React.FC = () => {
       if (!clientId) {
         console.log('No client ID available yet');
         if (!cancelled) {
-          setGateways(DUMMY_GATEWAYS);
-          setUsingDummyData(true);
+          setGateways([]);
           setLoading(false);
         }
         return;
@@ -276,8 +160,7 @@ const Devices: React.FC = () => {
 
       if (gatewaysError) {
         console.error('Error fetching gateways:', gatewaysError.message);
-        setGateways(DUMMY_GATEWAYS);
-        setUsingDummyData(true);
+        setGateways([]);
         setLoading(false);
         return;
       }
@@ -285,9 +168,8 @@ const Devices: React.FC = () => {
       console.log('Gateways found:', gatewaysData?.length, gatewaysData);
 
       if (!gatewaysData || gatewaysData.length === 0) {
-        console.log('No gateways for client, showing dummy');
-        setGateways(DUMMY_GATEWAYS);
-        setUsingDummyData(true);
+        console.log('No gateways for client');
+        setGateways([]);
         setLoading(false);
         return;
       }
@@ -349,7 +231,6 @@ const Devices: React.FC = () => {
       console.log('Final gateways with sensors and cameras:', gatewaysWithSensors);
 
       setGateways(gatewaysWithSensors as any);
-      setUsingDummyData(false);
       setLoading(false);
     };
 
@@ -373,17 +254,11 @@ const Devices: React.FC = () => {
         <div className="text-sm text-slate-400 py-12 text-center">Checking device link status...</div>
       ) : gateways.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-850 rounded-2xl p-10 text-center">
-          <Radio className="w-8 h-8 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
+          <Cpu className="w-8 h-8 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
           <p className="text-sm text-slate-500 dark:text-slate-400">No gateway has been registered to your account yet.</p>
         </div>
       ) : (
         <div className="space-y-5">
-          {usingDummyData && (
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-500/8 border border-amber-200 dark:border-amber-500/15 text-amber-700 dark:text-amber-400 text-xs font-semibold">
-              <Cpu className="w-3.5 h-3.5" />
-              Showing demo gateways — register a real gateway to see live data here.
-            </div>
-          )}
           {gateways.map((gw) => {
             const online = isOnline(gw.last_seen_at ?? undefined);
             return (
@@ -413,7 +288,7 @@ const Devices: React.FC = () => {
                       {online ? 'ONLINE' : 'OFFLINE'}
                     </span>
                     <p className="text-[10px] text-slate-400 font-mono mt-1">
-                      Last seen {timeAgo(gw.last_seen_at ?? undefined)}
+                      Last seen {formatDateGMT1(gw.last_seen_at ?? new Date().toISOString())} {formatTimeGMT1(gw.last_seen_at ?? new Date().toISOString())}
                     </p>
                   </div>
                 </div>
@@ -440,13 +315,13 @@ const Devices: React.FC = () => {
                                 <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
                                   {sensor.message || sensor.rf_code || 'Sensor'}
                                 </p>
-                                <p className="text-[10px] text-slate-400 font-mono">{timeAgo(sensor.timestamptz ?? sensor.last_triggered_at ?? undefined)}</p>
+                                <p className="text-[10px] text-slate-400 font-mono">{formatDateGMT1(sensor.timestamptz ?? sensor.last_triggered_at ?? new Date().toISOString())} {formatTimeGMT1(sensor.timestamptz ?? sensor.last_triggered_at ?? new Date().toISOString())}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
                               <button
                                 type="button"
-                                onClick={() => toggleSensing(sensor.id)}
+                                onClick={() => toggleSensing(sensor.id, sensing)}
                                 className={`w-8 h-5 rounded-full transition-colors relative ${sensing ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
                                 title={sensing ? 'Sensing ON — click to disable' : 'Sensing OFF — click to enable'}
                               >
@@ -468,7 +343,8 @@ const Devices: React.FC = () => {
                       </h5>
                       <div className="grid sm:grid-cols-2 gap-3">
                         {gw.cameras.map((camera) => {
-                          const camOnline = camera.is_enabled && camera.status === 'connected';
+                          const camEnabled = cameraEnabledStates[camera.id] ?? camera.is_enabled ?? true;
+                          const camOnline = camEnabled && camera.status === 'connected';
                           return (
                             <div
                               key={camera.id}
@@ -485,8 +361,16 @@ const Devices: React.FC = () => {
                                   </p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className={`w-2 h-2 rounded-full ${camOnline ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                              <div className="flex items-center gap-3 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleCameraEnabled(camera.id, camEnabled)}
+                                  className={`w-8 h-5 rounded-full transition-colors relative ${camEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                  title={camEnabled ? 'Camera ON — click to disable' : 'Camera OFF — click to enable'}
+                                >
+                                  <span className={`w-3.5 h-3.5 rounded-full bg-white absolute top-0.5 transition-all ${camEnabled ? 'left-4' : 'left-0.5'}`} />
+                                </button>
+                                <span className={`w-2 h-2 rounded-full shrink-0 ${camOnline ? 'bg-emerald-500' : 'bg-red-500'}`} />
                               </div>
                             </div>
                           );

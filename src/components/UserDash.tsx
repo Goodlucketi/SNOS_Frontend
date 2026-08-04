@@ -81,7 +81,7 @@ const UserDash: React.FC = () => {
               Welcome, {clientData?.name || "Operator"}!
             </h2>
             <p className="text-sm text-slate-400 max-w-lg leading-relaxed">
-              Your SNOS sensory nodes are active. You are connected to the central Lagos Security Gateway network.
+              Your SNOS sensory nodes are active.
             </p>
           </div>
 

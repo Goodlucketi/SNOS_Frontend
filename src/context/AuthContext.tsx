@@ -57,7 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [organizationName, setOrganizationName] = useState<string | null>(null);
 
-  const { showLoader, hideLoader } = useUI();
+  const { showLoader, hideLoader, showSubtleLoader, hideSubtleLoader } = useUI();
 
   /**
    * Resolves which of the four user types this account belongs to.
@@ -106,14 +106,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    showLoader("Authenticating Session...");
+    // Use subtle loader for initial auth check (background)
+    showSubtleLoader("Authenticating Session...");
 
     supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       if (error) {
         console.error("Error getting session:", error.message);
         setUser(null);
         setLoading(false);
-        hideLoader();
+        hideSubtleLoader();
         return;
       }
 
@@ -132,10 +133,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsClient(false);
       }
       setLoading(false);
-      hideLoader();
+      hideSubtleLoader();
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Only use full loader for explicit sign-in, subtle for token refresh/background
+      const isBackgroundRefresh = event === 'TOKEN_REFRESHED';
+
+      if (isBackgroundRefresh) {
+        showSubtleLoader("Refreshing session...");
+      } else if (event === 'SIGNED_IN') {
+        showLoader("Signing in...");
+      }
+
       setSession(session);
       if (session?.user) {
         setUser({
@@ -156,7 +166,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setOrganizationName(null);
       }
       setLoading(false);
-      hideLoader();
+
+      if (isBackgroundRefresh) {
+        hideSubtleLoader();
+      } else {
+        hideLoader();
+      }
     });
 
     return () => {

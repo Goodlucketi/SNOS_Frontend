@@ -12,12 +12,12 @@ const PlatformOverview: React.FC = () => {
 
   useEffect(() => {
     const fetchCounts = async () => {
-      const tables: Array<keyof typeof counts> = ['organizations', 'clients', 'homes', 'sensors'];
+      const tableNames = ['organizations', 'clients', 'homes', 'sensors'] as const;
       const results = await Promise.all(
-        tables.map((t) => supabase.from(t).select('*', { count: 'exact', head: true }))
+        tableNames.map((t) => supabase.from(t).select('*', { count: 'exact', head: true }))
       );
-      const next: any = {};
-      tables.forEach((t, i) => {
+      const next: { [key: string]: number | null } = { organizations: null, clients: null, homes: null, sensors: null };
+      tableNames.forEach((t, i) => {
         next[t] = results[i].count ?? 0;
       });
       setCounts(next);

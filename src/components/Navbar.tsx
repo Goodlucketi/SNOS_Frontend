@@ -145,20 +145,31 @@ const Navbar: React.FC = () => {
                 />
               </Link>
             ) : (
-              <div className="grid grid-cols-2">
-                <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                  <Button
-                    text="Login"
-                    variant="secondary"
-                    size="sm"
-                  />
+              <div className="relative flex items-center bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-0.5">
+               
+
+                {/* Login Button */}
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="relative z-10 px-5 flex items-center py-2 text-sm  bg-blue-600 shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 font-semibold text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 cursor-pointer whitespace-nowrap"
+                  aria-label="Login"
+                >
+                  <LogIn className="w-4 h-4 mr-1.5" />
+                  Login
                 </Link>
-                <Link to="/register" className="flex items-center gap-1.5">
-                  <Button
-                    text="Register"
-                    variant="primary"
-                    size="sm"
-                  />
+
+                 {/* Separator line */}
+                <div className="w-px h-7 bg-gradient-to-b from-transparent via-slate-300 dark:via-slate-700 to-transparent mx-1.5" />
+
+                {/* Register Button */}
+                <Link
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="relative z-10 px-5 flex items-center py-2 text-sm  bg-blue-600 shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 font-semibold text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 cursor-pointer whitespace-nowrap"
+                  aria-label="Register"
+                >
+                  Register
                 </Link>
               </div>
             )}
@@ -241,12 +252,29 @@ const Navbar: React.FC = () => {
                     <Button text="Dashboard" variant="primary" size="md" className="w-full justify-center" />
                   </Link>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                      <Button text="Login" variant="outline" size="md" className="w-full justify-center" />
+                  <div className="relative flex flex-col sm:flex-row bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-1 gap-1">
+                    {/* Separator line for mobile stack */}
+                    <div className="sm:hidden h-px w-full bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent my-1" />
+
+                    {/* Login Button */}
+                    <Link
+                      to="/login"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="relative z-10 px-5 py-3 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 text-center hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 cursor-pointer"
+                      aria-label="Login"
+                    >
+                      <LogIn className="w-4 h-4 mr-1.5 inline-block" />
+                      Login
                     </Link>
-                    <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
-                      <Button text="Register" variant="primary" size="md" className="w-full justify-center" />
+
+                    {/* Register Button */}
+                    <Link
+                      to="/register"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="relative z-10 px-5 py-3 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 transition-all duration-200 cursor-pointer text-center"
+                      aria-label="Register"
+                    >
+                      Register
                     </Link>
                   </div>
                 )}
