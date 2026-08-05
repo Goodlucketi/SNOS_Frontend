@@ -734,7 +734,7 @@ const GuidedFlow: React.FC = () => {
                   <li className="relative">
                     <div className="absolute -left-[31px] top-1 w-3 h-3 rounded-full bg-blue-500 ring-4 ring-slate-50 dark:ring-slate-950" />
                     <strong className="text-slate-900 dark:text-white block mb-1">1. Scheduling & Configuration</strong>
-                    You will receive a call from our engineers to configure your SNOS hardware and agree upon a convenient delivery/pickup date and time.
+                    You will receive a call from our engineers to configure your SNOS equipment and agree upon a convenient delivery/pickup date and time.
                   </li>
                   <li className="relative">
                     <div className="absolute -left-[31px] top-1 w-3 h-3 rounded-full bg-blue-500 ring-4 ring-slate-50 dark:ring-slate-950" />
