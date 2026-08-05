@@ -14,6 +14,38 @@ import { supabase } from "../lib/supabaseClient";
 
 const PAGE_SIZE = 25;
 const BOSCOTEC_BASE_URL = 'https://boscotec.org/api/events';
+const VIDEO_PROXY_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL
+  ? `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/video-proxy`
+  : 'https://your-project.supabase.co/functions/v1/video-proxy';
+
+// Utility to fetch media with auth and create object URL
+const fetchMediaBlob = async (url: string): Promise<string | null> => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return null;
+
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch media:', response.status, url);
+      return null;
+    }
+
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  } catch (err) {
+    console.error('Error fetching media blob:', err);
+    return null;
+  }
+};
+
+// For video clips, we need a proxy solution (e.g., Supabase Edge Function)
+// that can stream the video with auth headers
+// Currently storing the original URL; video will need proxy to play
 
 const mapEventToAlert = (e: ClientEvent): Alert => {
   const alert: Alert = {
@@ -38,7 +70,30 @@ const mapCameraEventToAlert = async (e: CameraEvent): Promise<Alert> => {
   // Determine if we have a clip (video) or just thumbnail (image)
   const hasClip = !!e.clip_ref;
   const mediaType = hasClip ? 'video' as const : 'image' as const;
-  const mediaUrl = hasClip ? clipUrl : thumbnailUrl;
+
+  // Fetch thumbnail as blob (works for images)
+  let thumbnailBlobUrl: string | null = null;
+  const { data: { session } } = await supabase.auth.getSession();
+  const authToken = session?.access_token;
+
+  if (authToken) {
+    try {
+      const thumbRes = await fetch(thumbnailUrl, {
+        headers: { 'Authorization': `Bearer ${authToken}` },
+        cache: 'no-store'
+      });
+      if (thumbRes.ok) {
+        const blob = await thumbRes.blob();
+        thumbnailBlobUrl = URL.createObjectURL(blob);
+      }
+      console.log('[BOSCOTEC] Thumbnail fetch:', eventId, { ok: thumbRes.ok, status: thumbRes.status, hasBlob: !!thumbnailBlobUrl });
+    } catch (err) {
+      console.error('[BOSCOTEC] Thumbnail fetch error:', err);
+    }
+  }
+
+  // Build proxy URL for clip that includes auth via edge function
+  const clipProxyUrl = hasClip ? `${VIDEO_PROXY_URL}?url=${encodeURIComponent(clipUrl)}` : undefined;
 
   const alert: CameraAlert = {
     id: e.id,
@@ -56,8 +111,11 @@ const mapCameraEventToAlert = async (e: CameraEvent): Promise<Alert> => {
     clip_ref: e.clip_ref,
     event_id: eventId,
     message: `${e.label} detected in ${e.zone} (${Math.round(e.score * 100)}% confidence)`,
-    media_url: mediaUrl,
+    media_url: hasClip ? clipProxyUrl : (thumbnailBlobUrl ?? thumbnailUrl),
     media_type: mediaType,
+    thumbnail_url: thumbnailBlobUrl ?? thumbnailUrl,
+    clip_url: clipProxyUrl ?? clipUrl,
+    has_clip: hasClip,
     occurred_at: e.started_at,
     status: 'unread' as const,
     source: 'camera' as const,
@@ -116,6 +174,11 @@ const DashView: React.FC = () => {
         getClientEvents(clientId, { limit: Math.ceil(PAGE_SIZE / 2), offset: append ? offsetRef.current : 0 }),
         getClientCameraEvents(clientId, { limit: Math.ceil(PAGE_SIZE / 2), offset: append ? cameraOffsetRef.current : 0 }),
       ]);
+
+      console.log('[BOSCOTEC] Raw camera events response:', {
+        count: cameraResult.count,
+        data: cameraResult.data
+      });
 
       if (!isMountedRef.current) return;
 

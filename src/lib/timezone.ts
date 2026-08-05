@@ -1,9 +1,9 @@
 /**
- * Timezone utilities for formatting dates in GMT+1 (CET/CEST)
- * Uses Europe/Paris timezone which automatically handles DST transitions
+ * Timezone utilities for formatting dates in GMT+1 (CET - fixed offset, no DST)
+ * Uses fixed UTC+1 offset regardless of season
  */
 
-export const TIMEZONE = 'Europe/Paris'; // GMT+1 with DST support
+export const TIMEZONE = 'Etc/GMT-1'; // Fixed GMT+1 (no DST)
 
 /**
  * Format a date string to display in GMT+1 timezone

@@ -44,6 +44,9 @@ export interface CameraAlert extends BaseAlert {
   message: string; // Derived from label/zone for display
   media_url?: string; // thumbnail or clip URL from boscotec.org
   media_type?: 'image' | 'video'; // Type of media for proper rendering
+  thumbnail_url?: string; // Full thumbnail URL from boscotec.org
+  clip_url?: string; // Full clip URL from boscotec.org
+  has_clip: boolean; // Whether a video clip is available
 }
 
 export type Alert = RfAlert | CameraAlert;
