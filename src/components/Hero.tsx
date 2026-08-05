@@ -10,36 +10,28 @@ import hero2 from '../assets/images/hero_2.png';
 import hero3 from '../assets/images/hero_3.png';
 import hero4 from '../assets/images/hero_4.png';
 
-const CAROUSEL_INTERVAL = 7000; // 7 seconds
+const CAROUSEL_INTERVAL = 10000; // 10 seconds
 
 const slides = [
   {
     id: 1,
     image: hero1,
-    prefix: 'Protecting your',
-    typewriter: 'Properties, Home & Family.',
-    text: 'Smart home security that watches over what matters most, 24/7.'
+    subtext: 'Smart home security that watches over what matters most, 24/7.'
   },
   {
     id: 2,
     image: hero2,
-    prefix: 'Getting instant',
-    typewriter: 'Phone Alerts.',
-    text: 'Receive an immediate SMS, Email, or WhatsApp message the moment anything unusual happens.'
+    subtext: 'Receive an immediate SMS, Email, or WhatsApp message the moment anything unusual happens.'
   },
   {
     id: 3,
     image: hero3,
-    prefix: 'Securing your',
-    typewriter: 'Business.',
-    text: 'Powerful protection for offices, warehouses, and entire residential communities.'
+    subtext: 'Powerful protection for Offices, Warehouses, Schools, Estates, Institutions and entire residential communities.'
   },
   {
     id: 4,
     image: hero4,
-    prefix: 'Sending help',
-    typewriter: 'When You Need It.',
-    text: 'Our rapid response team is dispatched immediately to stop threats before they escalate.'
+    subtext: 'Our rapid response team is dispatched immediately to stop threats before they escalate.'
   }
 ];
 
@@ -55,6 +47,7 @@ const Hero: React.FC = () => {
 
   return (
     <section className="relative h-screen w-full overflow-hidden bg-slate-950 text-white flex items-center justify-center">
+
       {/* Background Carousel */}
       <AnimatePresence mode="popLayout">
         <motion.img
@@ -70,56 +63,64 @@ const Hero: React.FC = () => {
       </AnimatePresence>
 
       {/* Overlays for legibility */}
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-950/60 via-slate-950/20 to-slate-950/80 pointer-events-none" />
-      <div className="absolute inset-0 bg-black/30 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/40 to-slate-950/90 pointer-events-none" />
+      <div className="absolute inset-0 bg-black/50 pointer-events-none" />
 
       {/* Content */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center">
-        
-        <motion.div 
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center space-y-4">
+
+        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-semibold uppercase tracking-wider mb-8"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-semibold uppercase tracking-wider mb-10"
         >
           <Radio className="w-3.5 h-3.5 animate-pulse text-blue-400" />
           System Status: Online
         </motion.div>
 
-        <h1 className="text-4xl sm:text-6xl md:text-7xl font-display font-extrabold tracking-tight leading-tight mb-6 h-[140px] md:h-[180px] flex flex-col justify-center">
-          <span className="block text-slate-300 font-light tracking-wide text-3xl sm:text-4xl mb-2">
-            {slides[currentSlide].prefix}
-          </span>
-          <AnimatePresence mode="wait">
-            <motion.span
-              key={slides[currentSlide].typewriter}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
-              className="block bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400 bg-clip-text text-transparent"
-            >
-              {slides[currentSlide].typewriter}
-            </motion.span>
-          </AnimatePresence>
-        </h1>
+        {/* Fixed Main Heading */}
+        <motion.h1
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="text-4xl sm:text-5xl md:text-6xl font-display font-extrabold tracking-tight leading-tight mb-2 text-white"
+        >
+          SNOSFORTRESS
+        </motion.h1>
 
-        <div className="h-[60px] md:h-[40px] mb-10 overflow-hidden relative w-full max-w-2xl mx-auto">
+        {/* Fixed Sub-heading */}
+        <motion.h2
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.1 }}
+          className="text-3xl sm:text-2xl md:text-3xl font-display font-medium text-slate-300 mb-8 tracking-wide"
+        >
+          Smart Security Network
+        </motion.h2>
+
+        {/* Carousel Subtext */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-10 min-h-[60px] max-w-2xl mx-auto"
+        >
           <AnimatePresence mode="wait">
             <motion.p
-              key={slides[currentSlide].text}
+              key={slides[currentSlide].id}
               initial={{ opacity: 0, filter: 'blur(10px)' }}
               animate={{ opacity: 1, filter: 'blur(0px)' }}
               exit={{ opacity: 0, filter: 'blur(10px)' }}
-              transition={{ duration: 0.8 }}
-              className="text-lg sm:text-xl text-slate-200 font-sans leading-relaxed absolute inset-0 w-full text-center"
+              transition={{ duration: 0.5 }}
+              className="text-lg sm:text-xl text-slate-200 font-sans leading-relaxed text-center"
             >
-              {slides[currentSlide].text}
+              {slides[currentSlide].subtext}
             </motion.p>
           </AnimatePresence>
-        </div>
+        </motion.div>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
@@ -136,7 +137,7 @@ const Hero: React.FC = () => {
         {/* Carousel Indicators */}
         <div className="mt-12 flex items-center gap-3">
           {slides.map((_, idx) => (
-            <button 
+            <button
               key={idx}
               onClick={() => setCurrentSlide(idx)}
               className={`transition-all duration-500 rounded-full ${

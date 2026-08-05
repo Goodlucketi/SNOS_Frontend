@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowRight, ShieldAlert, Flame, Lock } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Link } from 'react-router-dom';
 
 // New Illustrations
 import fenceImg from '../assets/images/alegria_fence.png';
@@ -111,9 +112,9 @@ const About: React.FC = () => {
           transition={{ delay: 0.4 }}
           className="text-center mt-12"
         >
-          <a href="#more-scenarios" onClick={(e) => e.preventDefault()} className="inline-flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50 px-6 py-3 rounded-2xl font-bold transition-colors group">
+          <Link to="/what-we-offer" className="inline-flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50 px-6 py-3 rounded-2xl font-bold transition-colors group">
             See More Use Cases <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </a>
+          </Link>
         </motion.div>
 
       </div>
