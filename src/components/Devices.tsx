@@ -3,7 +3,6 @@ import { Wifi, WifiOff, MapPin, Cpu, Cctv } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { getCamerasByGateway, Camera } from '../lib/api';
-import { toast } from 'react-toastify';
 import { formatDateGMT1, formatTimeGMT1 } from '../lib/timezone';
 
 interface Sensor {
@@ -62,6 +61,10 @@ const Devices: React.FC = () => {
   // Track enabled toggle state per camera (keyed by camera.id).
   const [cameraEnabledStates, setCameraEnabledStates] = useState<Record<string, boolean>>({});
 
+  // Track inline feedback messages for sensors and cameras
+  const [sensorFeedback, setSensorFeedback] = useState<Record<string, { message: string; type: 'success' | 'error' }>>({});
+  const [cameraFeedback, setCameraFeedback] = useState<Record<string, { message: string; type: 'success' | 'error' }>>({});
+
   const toggleSensing = async (sensorId: string, currentState: boolean) => {
     const newState = !currentState;
     setSensingStates(prev => ({ ...prev, [sensorId]: newState }));
@@ -76,14 +79,37 @@ const Devices: React.FC = () => {
         console.error('Error toggling sensor:', error);
         // Revert on error
         setSensingStates(prev => ({ ...prev, [sensorId]: currentState }));
-        toast.error('Failed to update sensor');
+        setSensorFeedback(prev => ({ ...prev, [sensorId]: { message: 'Failed to update sensor', type: 'error' } }));
+        // Clear feedback after 3 seconds
+        setTimeout(() => {
+          setSensorFeedback(prev => {
+            const next = { ...prev };
+            delete next[sensorId];
+            return next;
+          });
+        }, 3000);
       } else {
-        toast.success(newState ? 'Sensing enabled' : 'Sensing disabled');
+        setSensorFeedback(prev => ({ ...prev, [sensorId]: { message: newState ? 'Sensing enabled' : 'Sensing disabled', type: 'success' } }));
+        // Clear feedback after 3 seconds
+        setTimeout(() => {
+          setSensorFeedback(prev => {
+            const next = { ...prev };
+            delete next[sensorId];
+            return next;
+          });
+        }, 3000);
       }
     } catch (err) {
       console.error('Error toggling sensor:', err);
       setSensingStates(prev => ({ ...prev, [sensorId]: currentState }));
-      toast.error('Failed to update sensor');
+      setSensorFeedback(prev => ({ ...prev, [sensorId]: { message: 'Failed to update sensor', type: 'error' } }));
+      setTimeout(() => {
+        setSensorFeedback(prev => {
+          const next = { ...prev };
+          delete next[sensorId];
+          return next;
+        });
+      }, 3000);
     }
   };
 
@@ -101,14 +127,35 @@ const Devices: React.FC = () => {
         console.error('Error toggling camera:', error);
         // Revert on error
         setCameraEnabledStates(prev => ({ ...prev, [cameraId]: currentState }));
-        toast.error('Failed to update camera');
+        setCameraFeedback(prev => ({ ...prev, [cameraId]: { message: 'Failed to update camera', type: 'error' } }));
+        setTimeout(() => {
+          setCameraFeedback(prev => {
+            const next = { ...prev };
+            delete next[cameraId];
+            return next;
+          });
+        }, 3000);
       } else {
-        toast.success(newState ? 'Camera enabled' : 'Camera disabled');
+        setCameraFeedback(prev => ({ ...prev, [cameraId]: { message: newState ? 'Camera enabled' : 'Camera disabled', type: 'success' } }));
+        setTimeout(() => {
+          setCameraFeedback(prev => {
+            const next = { ...prev };
+            delete next[cameraId];
+            return next;
+          });
+        }, 3000);
       }
     } catch (err) {
       console.error('Error toggling camera:', err);
       setCameraEnabledStates(prev => ({ ...prev, [cameraId]: currentState }));
-      toast.error('Failed to update camera');
+      setCameraFeedback(prev => ({ ...prev, [cameraId]: { message: 'Failed to update camera', type: 'error' } }));
+      setTimeout(() => {
+        setCameraFeedback(prev => {
+          const next = { ...prev };
+          delete next[cameraId];
+          return next;
+        });
+      }, 3000);
     }
   };
 
@@ -304,31 +351,39 @@ const Devices: React.FC = () => {
                     <div className="grid sm:grid-cols-2 gap-3">
                       {gw.sensors.map((sensor) => {
                         const sensing = sensingStates[sensor.id] ?? sensor.is_sensing ?? true;
+                        const feedback = sensorFeedback[sensor.id];
                         return (
                           <div
                             key={sensor.id}
-                            className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-900"
+                            className="flex flex-col gap-1"
                           >
-                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                              <Cpu className="w-4 h-4 text-slate-400 shrink-0" />
-                              <div className="min-w-0">
-                                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
-                                  {sensor.message || sensor.rf_code || 'Sensor'}
-                                </p>
-                                <p className="text-[10px] text-slate-400 font-mono">{formatDateGMT1(sensor.timestamptz ?? sensor.last_triggered_at ?? new Date().toISOString())} {formatTimeGMT1(sensor.timestamptz ?? sensor.last_triggered_at ?? new Date().toISOString())}</p>
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+                              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                <Cpu className="w-4 h-4 text-slate-400 shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+                                    {sensor.message || sensor.rf_code || 'Sensor'}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 font-mono">{formatDateGMT1(sensor.timestamptz ?? sensor.last_triggered_at ?? new Date().toISOString())} {formatTimeGMT1(sensor.timestamptz ?? sensor.last_triggered_at ?? new Date().toISOString())}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSensing(sensor.id, sensing)}
+                                  className={`w-8 h-5 rounded-full transition-colors relative ${sensing ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                  title={sensing ? 'Sensing ON — click to disable' : 'Sensing OFF — click to enable'}
+                                >
+                                  <span className={`w-3.5 h-3.5 rounded-full bg-white absolute top-0.5 transition-all ${sensing ? 'left-4' : 'left-0.5'}`} />
+                                </button>
+                                <span className={`w-2 h-2 rounded-full shrink-0 ${sensing ? 'bg-emerald-500' : 'bg-red-500'}`} />
                               </div>
                             </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => toggleSensing(sensor.id, sensing)}
-                                className={`w-8 h-5 rounded-full transition-colors relative ${sensing ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                                title={sensing ? 'Sensing ON — click to disable' : 'Sensing OFF — click to enable'}
-                              >
-                                <span className={`w-3.5 h-3.5 rounded-full bg-white absolute top-0.5 transition-all ${sensing ? 'left-4' : 'left-0.5'}`} />
-                              </button>
-                              <span className={`w-2 h-2 rounded-full shrink-0 ${sensing ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                            </div>
+                            {feedback && (
+                              <div className={`pl-10 text-[10px] font-medium ${feedback.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                {feedback.message}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -345,33 +400,41 @@ const Devices: React.FC = () => {
                         {gw.cameras.map((camera) => {
                           const camEnabled = cameraEnabledStates[camera.id] ?? camera.is_enabled ?? true;
                           const camOnline = camEnabled && camera.status === 'connected';
+                          const feedback = cameraFeedback[camera.id];
                           return (
                             <div
                               key={camera.id}
-                              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-900"
+                              className="flex flex-col gap-1"
                             >
-                              <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                                <Cctv className="w-4 h-4 text-blue-500 shrink-0" />
-                                <div className="min-w-0">
-                                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
-                                    {camera.name || `Camera ${camera.camera_key}`}
-                                  </p>
-                                  <p className="text-[10px] text-slate-400 font-mono">
-                                    {camera.status} • {camOnline ? 'Enabled' : 'Disabled'}
-                                  </p>
+                              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-900">
+                                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                  <Cctv className="w-4 h-4 text-blue-500 shrink-0" />
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+                                      {camera.name || `Camera ${camera.camera_key}`}
+                                    </p>
+                                    <p className="text-[10px] text-slate-400 font-mono">
+                                      {camera.status} • {camOnline ? 'Enabled' : 'Disabled'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleCameraEnabled(camera.id, camEnabled)}
+                                    className={`w-8 h-5 rounded-full transition-colors relative ${camEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                                    title={camEnabled ? 'Camera ON — click to disable' : 'Camera OFF — click to enable'}
+                                  >
+                                    <span className={`w-3.5 h-3.5 rounded-full bg-white absolute top-0.5 transition-all ${camEnabled ? 'left-4' : 'left-0.5'}`} />
+                                  </button>
+                                  <span className={`w-2 h-2 rounded-full shrink-0 ${camEnabled ? 'bg-emerald-500' : 'bg-red-500'}`} />
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3 shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleCameraEnabled(camera.id, camEnabled)}
-                                  className={`w-8 h-5 rounded-full transition-colors relative ${camEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}
-                                  title={camEnabled ? 'Camera ON — click to disable' : 'Camera OFF — click to enable'}
-                                >
-                                  <span className={`w-3.5 h-3.5 rounded-full bg-white absolute top-0.5 transition-all ${camEnabled ? 'left-4' : 'left-0.5'}`} />
-                                </button>
-                                <span className={`w-2 h-2 rounded-full shrink-0 ${camOnline ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                              </div>
+                              {feedback && (
+                                <div className={`pl-10 text-[10px] font-medium ${feedback.type === 'success' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                  {feedback.message}
+                                </div>
+                              )}
                             </div>
                           );
                         })}

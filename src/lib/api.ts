@@ -593,6 +593,9 @@ export interface DashboardCounts {
     total: number;
     active: number;
   };
+  cameraEvents: {
+    total: number;
+  };
 }
 
 export async function getDashboardCounts(clientId: string): Promise<DashboardCounts> {
@@ -601,7 +604,8 @@ export async function getDashboardCounts(clientId: string): Promise<DashboardCou
     eventsResult,
     sensorsResult,
     camerasResult,
-    gatewaysResult
+    gatewaysResult,
+    cameraEventsResult
   ] = await Promise.all([
     // Events - select all columns to get metadata and potentially status
     supabase
@@ -621,6 +625,11 @@ export async function getDashboardCounts(clientId: string): Promise<DashboardCou
     // Gateways count - table is 'gateways' not 'rf_gateways'
     supabase
       .from('gateways')
+      .select('*', { count: 'exact', head: true })
+      .eq('client_id', clientId),
+    // Camera events count
+    supabase
+      .from('camera_events')
       .select('*', { count: 'exact', head: true })
       .eq('client_id', clientId)
   ]);
@@ -660,6 +669,9 @@ export async function getDashboardCounts(clientId: string): Promise<DashboardCou
       total: gatewaysResult.count || 0,
       active: gatewaysResult.count || 0,
     },
+    cameraEvents: {
+      total: cameraEventsResult.count || 0,
+    }
   };
 }
 

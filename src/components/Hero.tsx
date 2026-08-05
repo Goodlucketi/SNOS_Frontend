@@ -17,7 +17,7 @@ const slides = [
     id: 1,
     image: hero1,
     prefix: 'Protecting your',
-    typewriter: 'Home & Family.',
+    typewriter: 'Properties, Home & Family.',
     text: 'Smart home security that watches over what matters most, 24/7.'
   },
   {

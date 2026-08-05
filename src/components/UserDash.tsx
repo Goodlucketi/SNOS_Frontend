@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Bell, ShieldAlert, CheckCircle2, Clock, MapPin, KeyRound, Radio, Signal } from 'lucide-react';
+import { Radio, Signal, MapPin, ShieldAlert, Zap, Cpu, Cctv } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Alert } from '../types';
 import { User } from '../context/AuthContext';
@@ -36,16 +36,14 @@ const UserDash: React.FC = () => {
     }
   }, [clientData?.id]);
 
-  // Use DB counts if available - no fallback to context events (they're paginated)
-  const unreadCount = counts?.events.unread ?? 0;
-
-  const inProgressCount = counts?.events.in_progress ?? 0;
-
-  const completedCount = counts?.events.completed ?? 0;
-
   const totalSensors = counts?.sensors.total ?? 0;
   const totalCameras = counts?.cameras.total ?? 0;
   const totalGateways = counts?.gateways.total ?? 0;
+
+  // Signal counts
+  const sensorSignalsTotal = counts?.events.total ?? 0;
+  const cameraSignalsTotal = counts?.cameraEvents.total ?? 0;
+  const totalSignals = sensorSignalsTotal + cameraSignalsTotal;
 
   // Generate a friendly local greeting
   const getGreeting = () => {
@@ -101,48 +99,48 @@ const UserDash: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Grid: Counts + Health */}
+      {/* Main Grid: Signal Counts */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* Unread Alerts Card */}
-        <motion.div 
+
+        {/* Total Signals Card */}
+        <motion.div
           whileHover={{ y: -3 }}
           className="p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-850 rounded-2xl shadow-sm flex items-center justify-between group"
         >
           <div className="space-y-1">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Unread Signals</span>
-            <p className="text-3xl font-display font-extrabold text-slate-950 dark:text-white mt-1">{unreadCount}</p>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total Signals</span>
+            <p className="text-3xl font-display font-extrabold text-slate-950 dark:text-white mt-1">{totalSignals}</p>
           </div>
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${unreadCount > 0 ? 'bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-950 dark:text-slate-600'}`}>
-            <ShieldAlert className={`w-6 h-6 ${unreadCount > 0 ? 'animate-bounce' : ''}`} />
+          <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 flex items-center justify-center">
+            <Zap className="w-6 h-6" />
           </div>
         </motion.div>
 
-        {/* In-Progress Alerts Card */}
-        <motion.div 
+        {/* Sensor Signals Card */}
+        <motion.div
           whileHover={{ y: -3 }}
           className="p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-850 rounded-2xl shadow-sm flex items-center justify-between"
         >
           <div className="space-y-1">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">In Response</span>
-            <p className="text-3xl font-display font-extrabold text-slate-950 dark:text-white mt-1">{inProgressCount}</p>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Sensor Signals</span>
+            <p className="text-3xl font-display font-extrabold text-slate-950 dark:text-white mt-1">{sensorSignalsTotal}</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 flex items-center justify-center">
-            <Clock className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-green-100 text-green-600 dark:bg-green-500/10 dark:text-green-400 flex items-center justify-center">
+            <Cpu className="w-6 h-6" />
           </div>
         </motion.div>
 
-        {/* Completed Alerts Card */}
-        <motion.div 
+        {/* Camera Signals Card */}
+        <motion.div
           whileHover={{ y: -3 }}
           className="p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-850 rounded-2xl shadow-sm flex items-center justify-between"
         >
           <div className="space-y-1">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Resolved Signals</span>
-            <p className="text-3xl font-display font-extrabold text-slate-950 dark:text-white mt-1">{completedCount}</p>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Camera Signals</span>
+            <p className="text-3xl font-display font-extrabold text-slate-950 dark:text-white mt-1">{cameraSignalsTotal}</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 flex items-center justify-center">
-            <CheckCircle2 className="w-6 h-6" />
+          <div className="w-12 h-12 rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 flex items-center justify-center">
+            <Cctv className="w-6 h-6" />
           </div>
         </motion.div>
 
@@ -155,7 +153,7 @@ const UserDash: React.FC = () => {
           <span className="text-xs font-semibold text-slate-400 uppercase font-mono">Bound Node: {user?.user_id}</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Asset 1: LoT - Sensors */}
           <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-855 rounded-2xl shadow-sm flex flex-col gap-4">
             <div className="flex items-center gap-3">
@@ -206,24 +204,6 @@ const UserDash: React.FC = () => {
             </div>
             <div className="mt-2 pt-3 border-t border-slate-100 dark:border-slate-850 flex justify-between items-center text-[10px]">
               <span className="font-mono text-slate-400">ONLINE</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            </div>
-          </div>
-
-          {/* Asset 3: PoT - Alert Summary */}
-          <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-855 rounded-2xl shadow-sm flex flex-col gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                <KeyRound className="w-5 h-5" />
-              </div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Alerts (PoT)</span>
-            </div>
-            <div>
-              <h4 className="font-display font-bold text-2xl text-slate-900 dark:text-white">{unreadCount + inProgressCount + completedCount}</h4>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Total signals recorded</p>
-            </div>
-            <div className="mt-2 pt-3 border-t border-slate-100 dark:border-slate-850 flex justify-between items-center text-[10px]">
-              <span className="font-mono text-slate-400">SYSTEM SECURE</span>
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
             </div>
           </div>
