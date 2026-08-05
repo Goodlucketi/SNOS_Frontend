@@ -347,7 +347,7 @@ const GuidedFlow: React.FC = () => {
                 </div>
                 <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-3 tracking-tight">Let's Get Started</h2>
                 <p className="text-slate-500 dark:text-slate-400 text-base leading-relaxed">
-                  Provide your details to begin building your custom SNOS hardware package.
+                  Provide your details to begin building your custom SNOS Equipment.
                 </p>
               </div>
 
@@ -540,8 +540,8 @@ const GuidedFlow: React.FC = () => {
                   >
                     <Building2 className={`w-10 h-10 ${deliveryMethod === 'pickup' ? 'text-blue-500' : 'text-slate-400'}`} />
                     <div>
-                      <h4 className="font-extrabold text-slate-900 dark:text-white text-lg">HQ Pickup</h4>
-                      <p className="text-sm text-slate-500">Pick up from our Ikeja office</p>
+                      <h4 className="font-extrabold text-slate-900 dark:text-white text-lg">Pick Up From Office</h4>
+                      <p className="text-sm text-slate-500">Pick up from our nearest SNOS office</p>
                     </div>
                   </div>
 
@@ -556,7 +556,7 @@ const GuidedFlow: React.FC = () => {
                   >
                     <MapPin className={`w-10 h-10 ${deliveryMethod === 'delivery' ? 'text-blue-500' : 'text-slate-400'}`} />
                     <div>
-                      <h4 className="font-extrabold text-slate-900 dark:text-white text-lg">Delivery</h4>
+                      <h4 className="font-extrabold text-slate-900 dark:text-white text-lg">Delivery to your Location</h4>
                       <p className="text-sm text-slate-500">Dispatch rider to your location</p>
                     </div>
                   </div>
